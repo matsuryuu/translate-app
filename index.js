@@ -12,12 +12,15 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      "https://translate-app-topaz.vercel.app", // Vercel本番
-      "http://localhost:3000"                   // 開発用
+      "https://translate-app-topaz.vercel.app",
+      "http://localhost:3000"
     ],
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ["websocket", "polling"]
 });
+
 
 app.use(express.static("public"));
 

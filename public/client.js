@@ -55,7 +55,7 @@ function addUser() {
   document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
     const text = document.getElementById(`input-${uid}`).value;
     const inputLang = document.getElementById(`input-lang-${uid}`).value;
-    const outputLang = document.getElementById(`output-lang-${uid}`).value; // ✅ 修正
+    const outputLang = document.getElementById(`output-lang-${uid}`).value;
     const model = document.getElementById("model-select").value;
     const mode = document.getElementById("mode-select").value;
 
@@ -78,7 +78,9 @@ for (let i = 0; i < 2; i++) addUser();
 // 入力同期
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
-  if (el) el.value = text;
+  if (el && el.value !== text) { // ✅ 同じ内容なら上書きしない
+    el.value = text;
+  }
 });
 
 // 翻訳ストリーム結果

@@ -1,8 +1,8 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import dotenv from "dotenv";
 import OpenAI from "openai";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -11,57 +11,43 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      "https://translate-app-topaz.vercel.app",
-      "http://localhost:3000"
-    ],
+    origin: ["https://translate-app-topaz.vercel.app", "http://localhost:3000"],
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
   },
-  transports: ["websocket", "polling"]
 });
-
-
-app.use(express.static("public"));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ===== ユーザー & ログ保持 =====
-let users = {
-  1: "ユーザー1",
-  2: "ユーザー2",
-};
-let logs = []; // { userId, inputText, result }
+let logs = [];
 
-// ===== 接続時 =====
+// 静的ファイル
+app.use(express.static("public"));
+
 io.on("connection", (socket) => {
-  console.log("✅ 新しいクライアントが接続");
+  console.log("✅ Connected:", socket.id);
 
-  // 初期ユーザー情報を送信
-  socket.emit("init users", users);
-
-  // 過去ログを送信
-  socket.emit("init logs", logs);
-
-  // ===== 入力同期 =====
-  socket.on("input", ({ userId, text }) => {
-    io.emit("sync input", { userId, text });
+  socket.on("disconnect", () => {
+    console.log("❌ Disconnected:", socket.id);
   });
 
-  // ===== 翻訳リクエスト =====
-  socket.on("translate", async (payload) => {
-    const { userId, text, inputLang, outputLang, model, mode } = payload;
+  // 入力同期
+  socket.on("input", ({ userId, text }) => {
+    socket.broadcast.emit("sync input", { userId, text });
+  });
 
+  // 翻訳リクエスト
+  socket.on("translate", async ({ userId, text, inputLang, outputLang, model, mode }) => {
     try {
       const messages = [
         {
           role: "system",
           content:
             mode === "literal"
-              ? "厳密に直訳してください。出力は翻訳のみ。"
-              : "自然で口語的に意訳してください。出力は翻訳のみ。",
+              ? `Translate the following text into ${outputLang}. Use precise literal translation.`
+              : `Translate the following text into ${outputLang}. Use natural and conversational style.`,
         },
         { role: "user", content: text },
       ];
@@ -72,54 +58,31 @@ io.on("connection", (socket) => {
         stream: true,
       });
 
-      let finalText = "";
+      let fullResult = "";
       for await (const chunk of completion) {
-        const delta = chunk.choices[0]?.delta?.content;
-        if (delta) {
-          finalText += delta;
-          io.emit("stream result", { userId, partial: finalText });
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          fullResult += content;
+          socket.emit("stream result", { userId, partial: fullResult });
         }
       }
 
-      // 完了時にログを追加して配信
-      logs.unshift({ userId, inputText: text, result: finalText });
-      io.emit("final result", { userId, result: finalText, inputText: text });
+      socket.emit("final result", { userId, result: fullResult, inputText: text });
+      logs.unshift({ userId, inputText: text, result: fullResult });
     } catch (err) {
-      console.error("❌ 翻訳エラー:", err);
-      io.emit("translate error", {
-        userId,
-        message: "翻訳エラーが発生しました",
-      });
+      console.error("Translation error:", err);
+      socket.emit("translate error", { userId, message: "翻訳失敗" });
     }
   });
 
-  // ===== ユーザー名変更 =====
-  socket.on("rename user", ({ userId, newName }) => {
-    users[userId] = newName;
-    io.emit("name updated", { userId, newName });
-  });
-
-  // ===== ユーザー追加 =====
-  socket.on("add user", ({ userId, userName }) => {
-    users[userId] = userName;
-    io.emit("init users", users);
-  });
-
-  // ===== ユーザー削除 =====
-  socket.on("remove user", ({ userId }) => {
-    delete users[userId];
-    io.emit("init users", users);
-  });
-
-  // ===== ログ削除 =====
+  // ログ全削除
   socket.on("clear logs", () => {
     logs = [];
     io.emit("logs cleared", {});
   });
 });
 
-// ===== サーバー起動 =====
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server listening on http://localhost:${PORT}`);
 });

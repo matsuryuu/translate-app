@@ -98,7 +98,7 @@ io.on("connection", (socket) => {
     users[userId] = newName;
     io.emit("name updated", { userId, newName });
   });
-.
+
   // ===== ユーザー追加 =====
   socket.on("add user", ({ userId, userName }) => {
     users[userId] = userName;

@@ -1,6 +1,9 @@
 console.log("✅ client.js loaded");
 
-const socket = io();
+// 本番（Render）
+const socket = io("https://translate-app-backend.onrender.com");
+// 開発（ローカル）: // const socket = io();
+
 let currentUsers = 0;
 const maxUsers = 5;
 const minUsers = 2;

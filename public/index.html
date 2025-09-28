@@ -26,7 +26,6 @@
       background:var(--blue-3); font-size:16px;
     }
     #room-select button:hover{ background:var(--blue-4); }
-    .copy-btn{ margin-left:10px; padding:6px 12px; font-size:14px; }
 
     /* 翻訳画面 */
     #main-app{ display:none; }
@@ -81,23 +80,18 @@
   <!-- 📌 部屋選択 -->
   <div id="room-select">
     <h2>チャットルームを選んで入室</h2>
-    <div>
-      <button onclick="joinRoom('room1')">Room 1</button>
-      <button class="copy-btn" onclick="copyRoomLink('room1')">URLコピー</button>
-    </div>
-    <div>
-      <button onclick="joinRoom('room2')">Room 2</button>
-      <button class="copy-btn" onclick="copyRoomLink('room2')">URLコピー</button>
-    </div>
-    <div>
-      <button onclick="joinRoom('room3')">Room 3</button>
-      <button class="copy-btn" onclick="copyRoomLink('room3')">URLコピー</button>
-    </div>
+    <button onclick="copyMainLink()">このページのURLをコピー</button>
+    <br><br>
+    <button onclick="joinRoom('room1')">Room 1 に入室</button>
+    <button onclick="joinRoom('room2')">Room 2 に入室</button>
+    <button onclick="joinRoom('room3')">Room 3 に入室</button>
   </div>
 
   <!-- 📌 メインアプリ -->
   <div id="main-app">
     <div class="top-controls">
+      <button onclick="leaveRoom()">← 戻る</button>
+
       翻訳精度：
       <select id="model-select">
         <option value="gpt-4o">精度重視</option>

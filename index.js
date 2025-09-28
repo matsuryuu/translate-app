@@ -39,6 +39,11 @@ io.on("connection",(socket)=>{
     socket.emit("init logs", rooms[room].logs);
   });
 
+  socket.on("leave room",({room})=>{
+    socket.leave(room);
+    console.log(`🚪 ${socket.id} left ${room}`);
+  });
+
   socket.on("input",({room,userId,text})=>{
     socket.to(room).emit("sync input",{userId,text});
   });

@@ -1,13 +1,12 @@
 console.log("✅ client.js loaded");
 
-// 本番
+// 本番サーバー
 const socket = io("https://translate-app-backend.onrender.com", {
   withCredentials: true,
   transports: ["websocket", "polling"]
 });
 
 let currentRoom = null;
-let userOrder = [];
 
 // ====== 部屋選択 ======
 function joinRoom(room){
@@ -17,11 +16,21 @@ function joinRoom(room){
   document.getElementById("main-app").style.display="block";
 }
 
-function copyRoomLink(room){
-  const url = `${window.location.origin}?room=${room}`;
+function copyMainLink(){
+  const url = window.location.origin;
   navigator.clipboard.writeText(url).then(()=>{
     alert("URLをコピーしました！\n" + url);
   });
+}
+
+function leaveRoom(){
+  if(currentRoom){
+    socket.emit("leave room", { room: currentRoom });
+    currentRoom = null;
+  }
+  document.getElementById("main-app").style.display="none";
+  document.getElementById("room-select").style.display="block";
+  document.getElementById("users").innerHTML = "";
 }
 
 // ====== UI構築 ======

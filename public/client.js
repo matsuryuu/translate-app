@@ -10,7 +10,6 @@ const socket = io("https://translate-app-backend.onrender.com", {
 let currentUsers = 0;
 const maxUsers = 5;
 const minUsers = 2;
-let recognitionInstances = {};
 
 function addUser() {
   if (currentUsers >= maxUsers) return;
@@ -46,6 +45,18 @@ function addUser() {
   `;
   usersDiv.appendChild(box);
 
+  // 初期設定（ユーザーごとのデフォルト言語）
+  if (uid === 1) {
+    document.getElementById(`input-lang-${uid}`).value = "ja";
+    document.getElementById(`output-lang-${uid}`).value = "zh";
+  } else if (uid === 2) {
+    document.getElementById(`input-lang-${uid}`).value = "zh";
+    document.getElementById(`output-lang-${uid}`).value = "ja";
+  } else {
+    document.getElementById(`input-lang-${uid}`).value = "auto";
+    document.getElementById(`output-lang-${uid}`).value = "ja";
+  }
+
   // 入力同期
   document.getElementById(`input-${uid}`).addEventListener("input", (e) => {
     socket.emit("input", { userId: uid, text: e.target.value });
@@ -78,7 +89,7 @@ for (let i = 0; i < 2; i++) addUser();
 // 入力同期
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
-  if (el && el.value !== text) { // ✅ 同じ内容なら上書きしない
+  if (el && el.value !== text) {
     el.value = text;
   }
 });
@@ -97,6 +108,18 @@ socket.on("final result", ({ userId, result, inputText }) => {
       `<div class="input">${inputText}</div><div class="output">${result}</div>` +
       logEl.innerHTML;
   }
+});
+
+// 初期ログを受け取る
+socket.on("init logs", (serverLogs) => {
+  serverLogs.forEach(({ userId, inputText, result }) => {
+    const logEl = document.getElementById(`log-${userId}`);
+    if (logEl) {
+      logEl.innerHTML =
+        `<div class="input">${inputText}</div><div class="output">${result}</div>` +
+        logEl.innerHTML;
+    }
+  });
 });
 
 // ログ全削除

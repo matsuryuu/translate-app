@@ -25,6 +25,7 @@
       padding: 5px 10px;
       border-radius: 6px;
       border: 1px solid #ccc;
+      background: #d6ecfa; /* パステルブルー系 */
     }
 
     button {
@@ -51,17 +52,13 @@
       padding: 15px;
       border-radius: 12px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      text-align: left; /* ✅ 左寄せ */
     }
 
-    .user-box input[type="text"] {
-      width: 90%;
-      margin: 5px 0;
-      padding: 6px;
-    }
-
+    .user-box input[type="text"],
     .user-box textarea {
       width: 95%;
-      height: 120px; /* 出力欄を広げた */
+      height: 120px; /* ✅ 入力も出力も同じ高さ */
       margin: 5px 0;
       border-radius: 8px;
       border: 1px solid #ccc;

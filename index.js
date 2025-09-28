@@ -29,6 +29,9 @@ app.use(express.static("public"));
 io.on("connection", (socket) => {
   console.log("✅ Connected:", socket.id);
 
+  // 新入室ユーザーに過去ログを送る
+  socket.emit("init logs", logs);
+
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id);
   });

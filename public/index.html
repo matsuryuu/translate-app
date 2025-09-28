@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>リアルタイム翻訳くん 🌏</title>
-  <!-- 📌 これが重要！スマホでのレスポンシブを有効化 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     :root{
@@ -13,58 +12,55 @@
       --blue-4:#a7d2f4;
       --ink:#1f2a44;
     }
-
-    *{ box-sizing:border-box; }
     body{
-      margin:0; padding:0; text-align:center;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-      background:var(--blue-1); color:var(--ink);
+      margin:0; padding:0; font-family:system-ui, sans-serif;
+      background:var(--blue-1); color:var(--ink); text-align:center;
     }
     h1{ margin:20px 0; }
 
+    /* 部屋選択画面 */
+    #room-select{ margin-top:50px; }
+    #room-select button{
+      display:block; margin:15px auto; padding:12px 20px;
+      border-radius:10px; border:1px solid #b8c7d9;
+      background:var(--blue-3); font-size:16px;
+    }
+    #room-select button:hover{ background:var(--blue-4); }
+    .copy-btn{ margin-left:10px; padding:6px 12px; font-size:14px; }
+
+    /* 翻訳画面 */
+    #main-app{ display:none; }
+
     .top-controls{
       display:flex; flex-wrap:wrap; gap:10px;
-      justify-content:center; align-items:center;
-      margin:10px auto; padding:10px;
+      justify-content:center; margin:10px; padding:10px;
     }
     select,button{
       padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9;
-      background:var(--blue-2);
     }
     select{ background:var(--blue-3); }
-    button{ cursor:pointer; background:var(--blue-2); }
+    button{ background:var(--blue-2); cursor:pointer; }
     button:hover{ background:var(--blue-4); }
     .btn-clear{ background:pink; }
-    .btn-clear:hover{ filter:brightness(0.95); }
 
-    /* 🧩 ユーザー欄全体 */
     .user-container{
-      display:flex;
-      justify-content:space-around;
-      flex-wrap:wrap;
-      margin:18px;
-      gap:16px;
+      display:flex; flex-wrap:wrap; justify-content:space-around;
+      gap:16px; margin:18px;
     }
-
     .user-box{
       text-align:left; background:#fff; border-radius:14px;
       padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08);
       min-width:320px; max-width:480px; flex:1;
     }
-    .user-box h3{ margin:6px 0 10px; text-align:left; }
-
-    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .row .grow{ flex:1 1 auto; }
+    .user-box h3{ margin:6px 0 10px; }
 
     .text{
       width:100%; min-height:120px; max-height:360px;
       border:1px solid #cbd5e1; border-radius:10px;
       padding:10px; font-size:15px; line-height:1.5;
-      resize:none; overflow:auto; background:#fff;
+      resize:none; overflow:auto;
     }
-    .text.output{
-      background:#f9f9ff; font-weight:600;
-    }
+    .text.output{ background:#f9f9ff; font-weight:600; }
 
     .log{
       margin-top:10px; max-height:220px; overflow:auto; font-size:14px;
@@ -73,42 +69,54 @@
     .log .input{ color:#6b7280; }
     .log .output{ color:#0b68b8; font-weight:700; }
 
-    /* 📱 スマホ用：縦並びに強制切替 */
     @media (max-width: 768px){
-      .user-container{
-        flex-direction:column;
-        align-items:center;
-      }
-      .user-box{
-        width:90%;
-        margin-bottom:20px;
-      }
+      .user-container{ flex-direction:column; align-items:center; }
+      .user-box{ width:90%; margin-bottom:20px; }
     }
   </style>
 </head>
 <body>
   <h1>リアルタイム翻訳くん 🌏</h1>
 
-  <div class="top-controls">
-    翻訳精度：
-    <select id="model-select">
-      <option value="gpt-4o">精度重視</option>
-      <option value="gpt-4o-mini">速度重視</option>
-    </select>
-
-    翻訳モード：
-    <select id="mode-select">
-      <option value="free">意訳</option>
-      <option value="literal">直訳</option>
-    </select>
-
-    <button onclick="emitAddUser()">ユーザー追加</button>
-    <button onclick="emitRemoveUser()">ユーザー削除</button>
-    <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
+  <!-- 📌 部屋選択 -->
+  <div id="room-select">
+    <h2>チャットルームを選んで入室</h2>
+    <div>
+      <button onclick="joinRoom('room1')">Room 1</button>
+      <button class="copy-btn" onclick="copyRoomLink('room1')">URLコピー</button>
+    </div>
+    <div>
+      <button onclick="joinRoom('room2')">Room 2</button>
+      <button class="copy-btn" onclick="copyRoomLink('room2')">URLコピー</button>
+    </div>
+    <div>
+      <button onclick="joinRoom('room3')">Room 3</button>
+      <button class="copy-btn" onclick="copyRoomLink('room3')">URLコピー</button>
+    </div>
   </div>
 
-  <!-- 📌 class=user-container に変更 -->
-  <div class="user-container" id="users"></div>
+  <!-- 📌 メインアプリ -->
+  <div id="main-app">
+    <div class="top-controls">
+      翻訳精度：
+      <select id="model-select">
+        <option value="gpt-4o">精度重視</option>
+        <option value="gpt-4o-mini">速度重視</option>
+      </select>
+
+      翻訳モード：
+      <select id="mode-select">
+        <option value="free">意訳</option>
+        <option value="literal">直訳</option>
+      </select>
+
+      <button onclick="emitAddUser()">ユーザー追加</button>
+      <button onclick="emitRemoveUser()">ユーザー削除</button>
+      <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
+    </div>
+
+    <div class="user-container" id="users"></div>
+  </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="client.js"></script>

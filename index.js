@@ -11,9 +11,12 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["https://translate-app-topaz.vercel.app", "http://localhost:3000"],
-    methods: ["GET", "POST"],
-  },
+    origin: [
+      "https://translate-app-topaz.vercel.app", // Vercel本番
+      "http://localhost:3000"                   // 開発用
+    ],
+    methods: ["GET", "POST"]
+  }
 });
 
 app.use(express.static("public"));
@@ -92,7 +95,7 @@ io.on("connection", (socket) => {
     users[userId] = newName;
     io.emit("name updated", { userId, newName });
   });
-
+.
   // ===== ユーザー追加 =====
   socket.on("add user", ({ userId, userName }) => {
     users[userId] = userName;

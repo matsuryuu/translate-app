@@ -5,10 +5,10 @@
   <title>リアルタイム翻訳くん 🌏</title>
   <style>
     :root{
-      --blue-1:#eaf4fc;   /* 背景 */
-      --blue-2:#d6ecfa;   /* コントロール */
-      --blue-3:#c2e0f7;   /* セレクト等 */
-      --blue-4:#a7d2f4;   /* ホバー */
+      --blue-1:#eaf4fc;
+      --blue-2:#d6ecfa;
+      --blue-3:#c2e0f7;
+      --blue-4:#a7d2f4;
       --ink:#1f2a44;
     }
 
@@ -67,10 +67,10 @@
     .log .input{ color:#6b7280; }
     .log .output{ color:#0b68b8; font-weight:700; }
 
-    /* 📱 スマホは縦並び */
+    /* 📱 スマホは縦並びを強制 */
     @media (max-width: 768px){
-      .container{ flex-direction:column; }
-      .user-box{ width:100%; max-width:100%; }
+      .container{ display:block; }
+      .user-box{ width:100%; max-width:100%; margin-bottom:16px; }
     }
   </style>
 </head>
@@ -97,7 +97,6 @@
 
   <div class="container" id="users"></div>
 
-  <!-- Socket.IO クライアント（CDN） -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="client.js"></script>
 </body>

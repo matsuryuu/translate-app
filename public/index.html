@@ -3,107 +3,151 @@
 <head>
   <meta charset="UTF-8" />
   <title>リアルタイム翻訳くん 🌏</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    :root{
-      --blue-1:#eaf4fc;
-      --blue-2:#d6ecfa;
-      --blue-3:#c2e0f7;
-      --blue-4:#a7d2f4;
-      --ink:#1f2a44;
+    :root {
+      --blue-1: #eaf4fc;
+      --blue-2: #d6ecfa;
+      --blue-3: #c2e0f7;
+      --blue-4: #a7d2f4;
+      --ink: #1f2a44;
+      --red-soft: #f8bcbc;
     }
-    body{
-      margin:0; padding:0; font-family:system-ui, sans-serif;
-      background:var(--blue-1); color:var(--ink); text-align:center;
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--blue-1);
+      color: var(--ink);
+      text-align: center;
     }
-    h1{ margin:20px 0; }
+    h1 {
+      margin: 20px 0;
+    }
 
-    /* 部屋選択画面 */
-    #room-select{ margin-top:50px; }
-    #room-select button{
-      display:block; margin:15px auto; padding:12px 20px;
-      border-radius:10px; border:1px solid #b8c7d9;
-      background:var(--blue-3); font-size:16px;
+    #room-select {
+      margin-top: 50px;
     }
-    #room-select button:hover{ background:var(--blue-4); }
+    #room-select button {
+      display: block;
+      margin: 15px auto;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid #b8c7d9;
+      background: var(--blue-3);
+      font-size: 16px;
+    }
 
-    /* 翻訳画面 */
-    #main-app{ display:none; }
+    #main-app {
+      display: none;
+    }
 
-    .top-controls{
-      display:flex; flex-wrap:wrap; gap:10px;
-      justify-content:center; margin:10px; padding:10px;
+    .user-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 16px;
+      margin: 18px;
     }
-    select,button{
-      padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9;
+    .user-box {
+      text-align: left;
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      min-width: 320px;
+      max-width: 480px;
+      flex: 1;
+      box-sizing: border-box;
     }
-    select{ background:var(--blue-3); }
-    button{ background:var(--blue-2); cursor:pointer; }
-    button:hover{ background:var(--blue-4); }
-    .btn-clear{ background:pink; }
+    .user-box h3 {
+      margin: 6px 0 10px;
+    }
 
-    .user-container{
-      display:flex; flex-wrap:wrap; justify-content:space-around;
-      gap:16px; margin:18px;
+    .lang-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 8px;
     }
-    .user-box{
-      text-align:left; background:#fff; border-radius:14px;
-      padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08);
-      min-width:320px; max-width:480px; flex:1;
+    select, button {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #b8c7d9;
+      background: var(--blue-3);
     }
-    .user-box h3{ margin:6px 0 10px; }
+    button {
+      cursor: pointer;
+    }
+    .btn-translate {
+      background: var(--red-soft);
+      font-weight: 600;
+    }
+    .btn-translate:hover {
+      background: #f6a8a8;
+    }
 
-    .text{
-      width:100%; min-height:120px; max-height:360px;
-      border:1px solid #cbd5e1; border-radius:10px;
-      padding:10px; font-size:15px; line-height:1.5;
-      resize:none; overflow:auto;
+    .text {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 15px;
+      line-height: 1.5;
+      resize: none;
+      overflow: auto;
+      box-sizing: border-box;
     }
-    .text.output{ background:#f9f9ff; font-weight:600; }
-
-    .log{
-      margin-top:10px; max-height:220px; overflow:auto; font-size:14px;
-      border-top:1px dashed #d0d7e2; padding-top:8px;
+    .text.output {
+      background: #f9f9ff;
+      font-weight: 600;
     }
-    .log .input{ color:#6b7280; }
-    .log .output{ color:#0b68b8; font-weight:700; }
 
-    @media (max-width: 768px){
-      .user-container{ flex-direction:column; align-items:center; }
-      .user-box{ width:90%; margin-bottom:20px; }
+    .log {
+      margin-top: 10px;
+      max-height: 220px;
+      overflow: auto;
+      font-size: 14px;
+      border-top: 1px dashed #d0d7e2;
+      padding-top: 8px;
+    }
+    .log .input {
+      color: #6b7280;
+    }
+    .log .output {
+      color: #0b68b8;
+      font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      .user-container {
+        flex-direction: column;
+        align-items: center;
+      }
+      .user-box {
+        width: 90%;
+        margin-bottom: 20px;
+      }
     }
   </style>
 </head>
 <body>
   <h1>リアルタイム翻訳くん 🌏</h1>
 
-  <!-- 📌 部屋選択 -->
   <div id="room-select">
     <h2>チャットルームを選んで入室</h2>
     <button onclick="copyMainLink()">このページのURLをコピー</button>
-    <br><br>
+    <br />
     <button onclick="joinRoom('room1')">Room 1 に入室</button>
     <button onclick="joinRoom('room2')">Room 2 に入室</button>
     <button onclick="joinRoom('room3')">Room 3 に入室</button>
   </div>
 
-  <!-- 📌 メインアプリ -->
   <div id="main-app">
     <div class="top-controls">
       <button onclick="leaveRoom()">← 戻る</button>
-
-      翻訳精度：
-      <select id="model-select">
-        <option value="gpt-4o">精度重視</option>
-        <option value="gpt-4o-mini">速度重視</option>
-      </select>
-
-      翻訳モード：
-      <select id="mode-select">
-        <option value="free">意訳</option>
-        <option value="literal">直訳</option>
-      </select>
-
       <button onclick="emitAddUser()">ユーザー追加</button>
       <button onclick="emitRemoveUser()">ユーザー削除</button>
       <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>

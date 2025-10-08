@@ -31,7 +31,7 @@
     #room-select .rooms button{ padding:12px 20px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); }
     #room-select .rooms button:hover{ background:var(--blue-4); }
 
-    /* メイン画面（既存） */
+    /* メイン画面 */
     #main-app{ display:none; }
     .top-controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
     .top-controls button{ padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-2); cursor:pointer; }
@@ -55,7 +55,7 @@
     .log .input{ color:#6b7280; } .log .output{ color:#0b68b8; font-weight:700; }
 
     /* QR */
-    #qr-wrap{ display:none; margin-top:10px; }
+    #qr-wrap{ display:block; margin-top:12px; }
     #qr-canvas{ background:#fff; padding:10px; border-radius:12px; }
 
     /* スマホ */
@@ -75,26 +75,24 @@
       <button onclick="copyMainLink()">🔗 URLコピー</button>
       <button onclick="shareLink()">📱 共有</button>
       <button onclick="toggleSharePanel()">📋 詳細共有メニュー</button>
+      <button onclick="showQRCode()">🧾 QRコード表示</button>
     </div>
 
     <div id="share-panel" class="share-panel">
       <div class="share-grid">
-        <div>
-          <button onclick="showQRCode()">🧾 QRコード表示</button>
-          <div id="qr-wrap">
-            <canvas id="qr-canvas" width="220" height="220"></canvas><br>
-            <button onclick="hideQRCode()">QRを閉じる</button>
-          </div>
-        </div>
 
         <div class="room-links">
           <div><strong>各ルーム直リンク</strong></div>
-          <div id="room-links"></div>
+          <div id="room-links" style="line-height:1.8;"></div>
         </div>
 
         <div class="room-links">
-          <a id="mailto-link" target="_blank">📧 メールで共有</a>
+          <a id="mailto-link" target="_blank">📧 メールで共有</a><br>
           <a id="slack-link" target="_blank">💬 Slackに貼る（メッセージ作成）</a>
+        </div>
+
+        <div id="qr-wrap">
+          <canvas id="qr-canvas" width="220" height="220"></canvas>
         </div>
       </div>
     </div>
@@ -110,7 +108,7 @@
     </div>
   </div>
 
-  <!-- メインアプリ（既存UI） -->
+  <!-- メインアプリ -->
   <div id="main-app">
     <div class="top-controls">
       <button onclick="leaveRoom()">← 戻る</button>
@@ -121,7 +119,6 @@
     <div class="user-container" id="users"></div>
   </div>
 
-  <!-- Socket.IO, QR生成ライブラリ, アプリ本体 -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="client.js"></script>

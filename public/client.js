@@ -21,10 +21,7 @@ function toast(msg){
   setTimeout(()=> t.remove(), 1800);
 }
 
-function originUrl(){
-  // 入口URL（クエリやパスがあってもホスト根本を配る運用）
-  return window.location.origin;
-}
+function originUrl(){ return window.location.origin; }
 
 // コピー
 function copyMainLink(){
@@ -32,46 +29,32 @@ function copyMainLink(){
   navigator.clipboard.writeText(url).then(()=> toast("✅ URLをコピーしました"));
 }
 
-// Web Share API（スマホ向け）
+// Web Share API
 function shareLink(){
   const url = originUrl();
   if(navigator.share){
-    navigator.share({
-      title: "リアルタイム翻訳くん 🌏",
-      text: "この翻訳ルームの入口です。入って使ってね！",
-      url
-    }).catch(()=>{ /* キャンセル時は無視 */ });
-  }else{
-    copyMainLink();
-  }
+    navigator.share({ title:"リアルタイム翻訳くん 🌏", text:"翻訳ルームの入口です！", url });
+  }else{ copyMainLink(); }
 }
 
-// 共有メニューの開閉
+// メニュー開閉
 function toggleSharePanel(){
   const p = document.getElementById("share-panel");
   p.style.display = (p.style.display === "block" ? "none" : "block");
-  if(p.style.display === "block"){
-    updateShareLinks();
-    buildRoomLinks();
-  }
+  if(p.style.display === "block"){ updateShareLinks(); buildRoomLinks(); }
 }
 
-// メール/Slackリンク＆QR更新
+// メール/Slack/ルームリンク更新
 function updateShareLinks(){
   const url = originUrl();
-  // mailto
-  const subject = encodeURIComponent("翻訳ルームの入口URL");
-  const body    = encodeURIComponent(`このページから入室してください：\n${url}\n\nRoom1/2/3 のいずれかに入ってください。`);
-  const mailto  = `mailto:?subject=${subject}&body=${body}`;
-  document.getElementById("mailto-link").setAttribute("href", mailto);
-
-  // Slack（ブラウザから投稿画面へ遷移する簡易方式）
-  const text = encodeURIComponent(`翻訳ルームURL: ${url}\n入室後に Room1/2/3 を選んでください。`);
-  const slack = `https://slack.com/app_redirect?team=&channel=&message=${text}`;
-  document.getElementById("slack-link").setAttribute("href", slack);
+  const subject = encodeURIComponent("翻訳ルームURL");
+  const body = encodeURIComponent(`ここから入室できます：\n${url}`);
+  document.getElementById("mailto-link").href = `mailto:?subject=${subject}&body=${body}`;
+  const text = encodeURIComponent(`翻訳ルームURL: ${url}`);
+  document.getElementById("slack-link").href = `https://slack.com/app_redirect?team=&channel=&message=${text}`;
 }
 
-// ルーム直リンクを生成（?room=room1 のように付与）
+// ルームリンク改行つき
 function buildRoomLinks(){
   const root = originUrl();
   const linksDiv = document.getElementById("room-links");
@@ -82,26 +65,19 @@ function buildRoomLinks(){
     a.textContent = `${r}: ${root}/?room=${r}`;
     a.target = "_blank";
     linksDiv.appendChild(a);
+    linksDiv.appendChild(document.createElement("br"));
   });
 }
 
-// QRコード
-let qrInstance = null;
+// QRコード即時表示
 function showQRCode(){
   const url = originUrl();
-  const wrap = document.getElementById("qr-wrap");
   const canvas = document.getElementById("qr-canvas");
-  qrInstance = new QRious({
-    element: canvas, value: url, size: 220, level: "H",
-  });
-  wrap.style.display = "block";
-}
-function hideQRCode(){
-  const wrap = document.getElementById("qr-wrap");
-  wrap.style.display = "none";
+  new QRious({ element:canvas, value:url, size:220, level:"H" });
+  toast("🧾 QRコードを生成しました");
 }
 
-// ===== ルーム入退室 =====
+// ===== ルーム操作 =====
 function joinRoom(room){
   currentRoom = room;
   socket.emit("join room", { room });
@@ -109,26 +85,22 @@ function joinRoom(room){
   document.getElementById("main-app").style.display = "block";
 }
 function leaveRoom(){
-  if(currentRoom){
-    socket.emit("leave room", { room: currentRoom });
-    currentRoom = null;
-  }
-  document.getElementById("main-app").style.display = "none";
-  document.getElementById("room-select").style.display = "block";
-  document.getElementById("users").innerHTML = "";
+  if(currentRoom){ socket.emit("leave room", { room:currentRoom }); currentRoom=null; }
+  document.getElementById("main-app").style.display="none";
+  document.getElementById("room-select").style.display="block";
+  document.getElementById("users").innerHTML="";
 }
 
-// URLに ?room=roomX があれば自動入室（配布リンクからの導線）
-(function autoJoinFromQuery(){
-  const params = new URLSearchParams(window.location.search);
-  const r = params.get("room");
+// URLクエリ自動入室
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  const r = p.get("room");
   if(r && ["room1","room2","room3"].includes(r)){
-    // 少し遅らせてUIが描画された後に実行
     window.addEventListener("load", ()=> joinRoom(r));
   }
 })();
 
-// ===== 既存 UI 構築 =====
+// ===== UI構築 =====
 function addUserBox(uid, name){
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -139,19 +111,14 @@ function addUserBox(uid, name){
     <div class="lang-controls">
       <label>入力:</label>
       <select id="input-lang-${uid}">
-        <option value="auto">自動</option>
-        <option value="ja">日本語</option>
-        <option value="zh">中国語</option>
-        <option value="ko">韓国語</option>
-        <option value="en">英語</option>
+        <option value="auto">自動</option><option value="ja">日本語</option>
+        <option value="zh">中国語</option><option value="ko">韓国語</option><option value="en">英語</option>
       </select>
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
       <label>出力:</label>
       <select id="output-lang-${uid}">
-        <option value="ja">日本語</option>
-        <option value="zh">中国語</option>
-        <option value="ko">韓国語</option>
-        <option value="en">英語</option>
+        <option value="ja">日本語</option><option value="zh">中国語</option>
+        <option value="ko">韓国語</option><option value="en">英語</option>
       </select>
     </div>
     <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
@@ -160,65 +127,57 @@ function addUserBox(uid, name){
   `;
   usersDiv.appendChild(box);
 
-  // 既定言語
-  if(uid===1){ document.getElementById(`input-lang-${uid}`).value="ja";  document.getElementById(`output-lang-${uid}`).value="zh"; }
-  if(uid===2){ document.getElementById(`input-lang-${uid}`).value="zh";  document.getElementById(`output-lang-${uid}`).value="ja"; }
-  if(uid===3){ document.getElementById(`input-lang-${uid}`).value="auto";document.getElementById(`output-lang-${uid}`).value="ja"; }
+  if(uid===1){inputLang(uid,"ja","zh");}
+  if(uid===2){inputLang(uid,"zh","ja");}
+  if(uid===3){inputLang(uid,"auto","ja");}
 
-  // 入力同期
-  const inputEl = document.getElementById(`input-${uid}`);
-  inputEl.addEventListener("input", (e)=>{
-    socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value });
-  });
-
-  // 翻訳
-  document.getElementById(`btn-translate-${uid}`).addEventListener("click", ()=>{
-    const text = inputEl.value;
-    const inputLang  = document.getElementById(`input-lang-${uid}`).value;
-    const outputLang = document.getElementById(`output-lang-${uid}`).value;
-    const outputBox  = document.getElementById(`output-${uid}`);
-    outputBox.value = "翻訳中…";
-    socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang });
+  const inputEl=document.getElementById(`input-${uid}`);
+  inputEl.addEventListener("input",e=>socket.emit("input",{room:currentRoom,userId:uid,text:e.target.value}));
+  document.getElementById(`btn-translate-${uid}`).addEventListener("click",()=>{
+    const text=inputEl.value, inputLangVal=document.getElementById(`input-lang-${uid}`).value, outputLang=document.getElementById(`output-lang-${uid}`).value;
+    const out=document.getElementById(`output-${uid}`); out.value="翻訳中…";
+    socket.emit("translate",{room:currentRoom,userId:uid,text,inputLang:inputLangVal,outputLang});
   });
 }
 
-// トップの操作
-function emitAddUser(){ socket.emit("add user", { room: currentRoom }); }
-function emitRemoveUser(){ socket.emit("remove user", { room: currentRoom }); }
-function clearAllLogs(){ socket.emit("clear logs", { room: currentRoom }); }
+function inputLang(uid,i,o){
+  document.getElementById(`input-lang-${uid}`).value=i;
+  document.getElementById(`output-lang-${uid}`).value=o;
+}
 
-// ソケットイベント
-socket.on("init users", (usersMap)=>{
-  document.getElementById("users").innerHTML = "";
-  Object.entries(usersMap).forEach(([uid, name])=> addUserBox(Number(uid), name));
+function emitAddUser(){ socket.emit("add user",{room:currentRoom}); }
+function emitRemoveUser(){ socket.emit("remove user",{room:currentRoom}); }
+function clearAllLogs(){ socket.emit("clear logs",{room:currentRoom}); }
+
+socket.on("init users",users=>{
+  const div=document.getElementById("users");div.innerHTML="";
+  Object.entries(users).forEach(([id,name])=>addUserBox(Number(id),name));
 });
-socket.on("users updated", (usersMap)=>{
-  document.getElementById("users").innerHTML = "";
-  Object.entries(usersMap).forEach(([uid, name])=> addUserBox(Number(uid), name));
+socket.on("users updated",users=>{
+  const div=document.getElementById("users");div.innerHTML="";
+  Object.entries(users).forEach(([id,name])=>addUserBox(Number(id),name));
 });
-socket.on("sync input", ({ userId, text })=>{
-  const el = document.getElementById(`input-${userId}`);
-  if(el && el.value !== text) el.value = text;
+socket.on("sync input",({userId,text})=>{
+  const el=document.getElementById(`input-${userId}`);
+  if(el && el.value!==text) el.value=text;
 });
-socket.on("stream result", ({ userId, partial })=>{
-  const el = document.getElementById(`output-${userId}`);
-  if(el) el.value = partial;
+socket.on("stream result",({userId,partial})=>{
+  const el=document.getElementById(`output-${userId}`);
+  if(el) el.value=partial;
 });
-socket.on("final result", ({ userId, result, inputText })=>{
-  const out = document.getElementById(`output-${userId}`);
-  const log = document.getElementById(`log-${userId}`);
-  if(out) out.value = result;
-  if(log) log.innerHTML = `<div class="input">${inputText}</div><div class="output">${result}</div>` + log.innerHTML;
+socket.on("final result",({userId,result,inputText})=>{
+  const out=document.getElementById(`output-${userId}`);
+  const log=document.getElementById(`log-${userId}`);
+  if(out) out.value=result;
+  if(log) log.innerHTML=`<div class="input">${inputText}</div><div class="output">${result}</div>`+log.innerHTML;
 });
 
-// グローバルに公開（HTMLから呼ぶ用）
-window.copyMainLink = copyMainLink;
-window.shareLink = shareLink;
-window.toggleSharePanel = toggleSharePanel;
-window.showQRCode = showQRCode;
-window.hideQRCode = hideQRCode;
-window.joinRoom = joinRoom;
-window.leaveRoom = leaveRoom;
-window.emitAddUser = emitAddUser;
-window.emitRemoveUser = emitRemoveUser;
-window.clearAllLogs = clearAllLogs;
+window.copyMainLink=copyMainLink;
+window.shareLink=shareLink;
+window.toggleSharePanel=toggleSharePanel;
+window.showQRCode=showQRCode;
+window.joinRoom=joinRoom;
+window.leaveRoom=leaveRoom;
+window.emitAddUser=emitAddUser;
+window.emitRemoveUser=emitRemoveUser;
+window.clearAllLogs=clearAllLogs;

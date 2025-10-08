@@ -31,6 +31,7 @@ function leaveRoom() {
   document.getElementById("users").innerHTML = "";
 }
 
+// ======== ユーザー欄追加 ========
 function addUserBox(uid, name) {
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -39,6 +40,7 @@ function addUserBox(uid, name) {
   box.innerHTML = `
     <h3>${name}</h3>
     <div class="lang-controls">
+      <label>入力:</label>
       <select id="input-lang-${uid}">
         <option value="auto">自動</option>
         <option value="ja">日本語</option>
@@ -47,6 +49,7 @@ function addUserBox(uid, name) {
         <option value="en">英語</option>
       </select>
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
+      <label>出力:</label>
       <select id="output-lang-${uid}">
         <option value="ja">日本語</option>
         <option value="zh">中国語</option>
@@ -60,6 +63,7 @@ function addUserBox(uid, name) {
   `;
   usersDiv.appendChild(box);
 
+  // 初期設定
   if (uid === 1) {
     document.getElementById(`input-lang-${uid}`).value = "ja";
     document.getElementById(`output-lang-${uid}`).value = "zh";
@@ -71,8 +75,19 @@ function addUserBox(uid, name) {
     document.getElementById(`output-lang-${uid}`).value = "ja";
   }
 
+  // 入力リアルタイム同期
+  const inputEl = document.getElementById(`input-${uid}`);
+  inputEl.addEventListener("input", (e) => {
+    socket.emit("input", {
+      room: currentRoom,
+      userId: uid,
+      text: e.target.value
+    });
+  });
+
+  // 翻訳ボタン押下
   document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
-    const text = document.getElementById(`input-${uid}`).value;
+    const text = inputEl.value;
     const inputLang = document.getElementById(`input-lang-${uid}`).value;
     const outputLang = document.getElementById(`output-lang-${uid}`).value;
 
@@ -99,6 +114,7 @@ function clearAllLogs() {
   socket.emit("clear logs", { room: currentRoom });
 }
 
+// ======== ソケットイベント ========
 socket.on("init users", (usersMap) => {
   document.getElementById("users").innerHTML = "";
   Object.entries(usersMap).forEach(([uid, name]) => addUserBox(Number(uid), name));
@@ -109,11 +125,19 @@ socket.on("users updated", (usersMap) => {
   Object.entries(usersMap).forEach(([uid, name]) => addUserBox(Number(uid), name));
 });
 
+// 入力同期
+socket.on("sync input", ({ userId, text }) => {
+  const el = document.getElementById(`input-${userId}`);
+  if (el && el.value !== text) el.value = text;
+});
+
+// 翻訳ストリーム
 socket.on("stream result", ({ userId, partial }) => {
   const el = document.getElementById(`output-${userId}`);
   if (el) el.value = partial;
 });
 
+// 翻訳結果確定
 socket.on("final result", ({ userId, result, inputText }) => {
   const logEl = document.getElementById(`log-${userId}`);
   const outputBox = document.getElementById(`output-${userId}`);

@@ -16,6 +16,7 @@ const io = new Server(server, {
 });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// 各部屋の状態
 const rooms = {
   room1: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [] },
   room2: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [] },
@@ -33,8 +34,10 @@ io.on("connection", (socket) => {
     socket.emit("init users", rooms[room].users);
   });
 
-  socket.on("leave room", ({ room }) => {
-    socket.leave(room);
+  socket.on("leave room", ({ room }) => socket.leave(room));
+
+  socket.on("input", ({ room, userId, text }) => {
+    socket.to(room).emit("sync input", { userId, text });
   });
 
   socket.on("add user", ({ room }) => {
@@ -56,10 +59,14 @@ io.on("connection", (socket) => {
     io.to(room).emit("users updated", r.users);
   });
 
+  // 翻訳
   socket.on("translate", async ({ room, userId, text, inputLang, outputLang }) => {
     try {
-      const sys = `あなたは翻訳専用AIです。絶対に質問に答えたり新しい情報を生成したりせず、
-入力文をそのまま ${outputLang} に翻訳してください。`;
+      const sys = `
+あなたは翻訳専用AIです。
+絶対に質問に回答したり、新しい内容を作ったりしてはいけません。
+入力文の意味を理解せず、文法構造に忠実に ${outputLang} へ翻訳してください。
+質問文であっても「答え」ではなく「質問文そのもの」を翻訳してください。`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -79,16 +86,13 @@ io.on("connection", (socket) => {
       }
 
       io.to(room).emit("final result", { userId, result: acc, inputText: text });
-      rooms[room].logs.unshift({ userId, inputText: text, result: acc });
     } catch (e) {
       console.error(e);
       io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id);
-  });
+  socket.on("disconnect", () => console.log("❌ Disconnected:", socket.id));
 });
 
 const PORT = process.env.PORT || 10000;

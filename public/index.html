@@ -34,15 +34,23 @@
     .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
     .user-box h3 { margin:6px 0 10px; }
 
-    /* 🩵 コピーアイコン半透明重ね配置 */
+    /* 🩵 コピーアイコン半透明重ね配置（角ギリギリ） */
     .copy-btn {
-      position:absolute; top:12px; right:12px;
+      position:absolute; top:6px; right:6px;
       border:none; background:rgba(255,255,255,0.6);
       cursor:pointer; font-size:18px; border-radius:8px;
       transition:all .2s; padding:4px;
     }
     .copy-btn:hover { background:rgba(255,255,255,0.9); }
     .copy-btn.done { color:green; }
+    /* 🗑️ 入力欄クリアボタン（コピーと同じ見た目） */
+    .clear-btn {
+      position:absolute; top:6px; right:6px;
+      border:none; background:rgba(255,255,255,0.6);
+      cursor:pointer; font-size:18px; border-radius:8px;
+      transition:all .2s; padding:4px;
+    }
+    .clear-btn:hover { background:rgba(255,255,255,0.9); }
 
     .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
     .lang-controls label { font-weight:600; }
@@ -51,7 +59,7 @@
     .btn-translate:hover { background:#f6a8a8; }
 
     .text { width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
-    .text.output { background:#f9f9ff; font-weight:600; position:relative; }
+    .text.output { background:#f9f9ff; font-weight:600; position:relative; margin-top:6px; }
 
     .log { margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; text-align:left; }
     .log .input { color:#9ca3af; }

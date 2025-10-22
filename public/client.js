@@ -162,7 +162,10 @@ function addUserBox(uid, name) {
       </select>
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
-    <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
+    <div style="position:relative;">
+      <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
+      <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
+    </div>
     <div style="position:relative;">
       <textarea id="output-${uid}" class="text output" readonly></textarea>
       <button class="copy-btn" id="copy-${uid}" title="コピー">📋</button>
@@ -217,6 +220,15 @@ function addUserBox(uid, name) {
       }, 2000);
     });
   });
+
+  // 🗑️ クリア（入力欄右上の半透明ボタン）
+  const clearBtn = document.getElementById(`clear-${uid}`);
+  clearBtn.addEventListener("click", () => {
+    const input = document.getElementById(`input-${uid}`);
+    input.value = "";
+    socket.emit("input", { room: currentRoom, userId: uid, text: "" });
+    toast("✏️ 入力をクリアしました");
+  });
 }
 
 function setLang(uid, i, o) {
@@ -266,7 +278,7 @@ socket.on("translated", ({ userId, text, inputText }) => {
   if (log) {
     const line = `
       <div class="line">
-        <span class="mark">▶</span>
+        <span class="mark">📝</span>
         <div class="input">${inputText}</div>
       </div>
       <div class="line">

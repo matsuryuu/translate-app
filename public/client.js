@@ -1,5 +1,8 @@
 console.log("✅ client.js loaded");
-const socket = io("https://translate-app-backend.onrender.com", { withCredentials: true, transports: ["websocket"] });
+const socket = io("https://translate-app-backend.onrender.com", {
+  withCredentials: true,
+  transports: ["websocket"],
+});
 let currentRoom = null;
 
 function toast(msg) {
@@ -10,22 +13,33 @@ function toast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 1600);
 }
+
 function originUrl() {
   return window.location.origin;
 }
 
-// 🩵 共有メニュー
+// =============================
+// 📱 共有メニュー関連
+// =============================
 function copyMainLink() {
-  navigator.clipboard.writeText(originUrl()).then(() => toast("✅ URLをコピーしました"));
+  navigator.clipboard.writeText(originUrl()).then(() =>
+    toast("✅ URLをコピーしました")
+  );
 }
+
 function shareLink() {
   const url = originUrl();
   if (navigator.share) {
-    navigator.share({ title: "リアルタイム翻訳くん🌏", text: "この翻訳ルームに入ってね！", url });
+    navigator.share({
+      title: "リアルタイム翻訳くん🌏",
+      text: "この翻訳ルームに入ってね！",
+      url,
+    });
   } else {
     copyMainLink();
   }
 }
+
 function toggleSharePanel() {
   const p = document.getElementById("share-panel");
   p.style.display = p.style.display === "block" ? "none" : "block";
@@ -34,11 +48,19 @@ function toggleSharePanel() {
     buildRoomLinks();
   }
 }
+
 function updateShareLinks() {
   const url = originUrl();
-  document.getElementById("mailto-link").href = `mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(url)}`;
-  document.getElementById("slack-link").href = `https://slack.com/app_redirect?team=&channel=&message=${encodeURIComponent(url)}`;
+  document.getElementById("mailto-link").href = `mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(
+    url
+  )}`;
+  document.getElementById(
+    "slack-link"
+  ).href = `https://slack.com/app_redirect?team=&channel=&message=${encodeURIComponent(
+    url
+  )}`;
 }
+
 function buildRoomLinks() {
   const root = originUrl();
   const linksDiv = document.getElementById("room-links");
@@ -53,7 +75,9 @@ function buildRoomLinks() {
   });
 }
 
-// 🧾 QRコード
+// =============================
+// 🧾 QRコード生成
+// =============================
 function toggleQRCode() {
   const wrap = document.getElementById("qr-wrap");
   if (wrap.style.display === "block") {
@@ -66,7 +90,9 @@ function toggleQRCode() {
   toast("🧾 QRコードを生成しました");
 }
 
-// 🪄 ルーム関連
+// =============================
+// 🏠 ルーム関連
+// =============================
 function joinRoom(room) {
   currentRoom = room;
   socket.emit("join room", { room });
@@ -74,6 +100,7 @@ function joinRoom(room) {
   document.getElementById("main-app").style.display = "block";
   document.getElementById("room-switch").value = room;
 }
+
 function leaveRoom() {
   if (currentRoom) {
     socket.emit("leave room", { room: currentRoom });
@@ -83,6 +110,7 @@ function leaveRoom() {
   document.getElementById("room-select").style.display = "block";
   document.getElementById("users").innerHTML = "";
 }
+
 function switchRoom(targetRoom) {
   if (targetRoom === currentRoom) return;
   socket.emit("leave room", { room: currentRoom });
@@ -92,7 +120,9 @@ function switchRoom(targetRoom) {
   toast(`🏠 ${targetRoom} に移動しました`);
 }
 
-// 💬 初期入室
+// =============================
+// 🚀 初期処理
+// =============================
 window.addEventListener("load", () => {
   const p = new URLSearchParams(window.location.search);
   const r = p.get("room");
@@ -104,7 +134,9 @@ window.addEventListener("load", () => {
   }
 });
 
-// 🧩 ユーザーUI生成
+// =============================
+// 👥 ユーザーUI生成
+// =============================
 function addUserBox(uid, name) {
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -115,53 +147,77 @@ function addUserBox(uid, name) {
     <div class="lang-controls">
       <label>入力:</label>
       <select id="input-lang-${uid}">
-        <option value="auto">自動</option><option value="ja">日本語</option>
-        <option value="zh">中国語</option><option value="ko">韓国語</option><option value="en">英語</option>
+        <option value="auto">自動</option>
+        <option value="ja">日本語</option>
+        <option value="zh">中国語</option>
+        <option value="ko">韓国語</option>
+        <option value="en">英語</option>
       </select>
       <label>出力:</label>
       <select id="output-lang-${uid}">
-        <option value="ja">日本語</option><option value="zh">中国語</option>
-        <option value="ko">韓国語</option><option value="en">英語</option>
+        <option value="ja">日本語</option>
+        <option value="zh">中国語</option>
+        <option value="ko">韓国語</option>
+        <option value="en">英語</option>
       </select>
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
     <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
     <textarea id="output-${uid}" class="text output" readonly></textarea>
-    <div class="log" id="log-${uid}"></div>`;
+    <button class="copy-btn" id="copy-${uid}" title="コピー">📋</button>
+    <div class="log" id="log-${uid}"></div>
+  `;
   usersDiv.appendChild(box);
 
+  // 初期設定
   if (uid === 1) setLang(uid, "ja", "zh");
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
 
+  // 入力同期
   const inputEl = document.getElementById(`input-${uid}`);
   inputEl.addEventListener("input", (e) =>
     socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value })
   );
 
-  document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
-    const text = inputEl.value;
-    const inputLang = document.getElementById(`input-lang-${uid}`).value;
-    const outputLang = document.getElementById(`output-lang-${uid}`).value;
-    const mode = document.getElementById("mode-select").value;
-    const model = document.getElementById("model-select").value;
+  // 翻訳ボタン
+  document
+    .getElementById(`btn-translate-${uid}`)
+    .addEventListener("click", () => {
+      const text = inputEl.value;
+      const inputLang = document.getElementById(`input-lang-${uid}`).value;
+      const outputLang = document.getElementById(`output-lang-${uid}`).value;
+      const mode = document.getElementById("mode-select").value;
+      const model = document.getElementById("model-select").value;
+      const out = document.getElementById(`output-${uid}`);
+      out.value = "翻訳中…";
+      socket.emit("translate", {
+        room: currentRoom,
+        userId: uid,
+        text,
+        inputLang,
+        outputLang,
+        mode,
+        model,
+      });
+    });
+
+  // 📋 コピー
+  const copyBtn = document.getElementById(`copy-${uid}`);
+  copyBtn.addEventListener("click", () => {
     const out = document.getElementById(`output-${uid}`);
-    out.value = "翻訳中…";
-    socket.emit("translate", {
-      room: currentRoom,
-      userId: uid,
-      text,
-      inputLang,
-      outputLang,
-      mode,
-      model
+    navigator.clipboard.writeText(out.value).then(() => {
+      copyBtn.textContent = "✅";
+      setTimeout(() => (copyBtn.textContent = "📋"), 2000);
     });
   });
 }
+
 function setLang(uid, i, o) {
   document.getElementById(`input-lang-${uid}`).value = i;
   document.getElementById(`output-lang-${uid}`).value = o;
 }
+
 function emitAddUser() {
   socket.emit("add user", { room: currentRoom });
 }
@@ -172,28 +228,42 @@ function clearAllLogs() {
   socket.emit("clear logs", { room: currentRoom });
 }
 
-// Socketイベント
+// =============================
+// 💬 Socketイベント
+// =============================
 socket.on("init users", (u) => {
   const d = document.getElementById("users");
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
 });
+
 socket.on("users updated", (u) => {
   const d = document.getElementById("users");
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
 });
+
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
   if (el && el.value !== text) el.value = text;
 });
+
 socket.on("stream", ({ userId, text }) => {
   const el = document.getElementById(`output-${userId}`);
   if (el) el.value = text;
 });
-socket.on("translated", ({ userId, text }) => {
+
+socket.on("translated", ({ userId, text, inputText }) => {
   const out = document.getElementById(`output-${userId}`);
   const log = document.getElementById(`log-${userId}`);
   if (out) out.value = text;
-  if (log) log.innerHTML = `<div class='output'>${text}</div>` + log.innerHTML;
+  if (log)
+    log.innerHTML =
+      `<div class="input">▶ ${inputText}</div><div class="output">💬 ${text}</div>` +
+      log.innerHTML;
+});
+
+socket.on("logs cleared", () => {
+  document.querySelectorAll(".log").forEach((log) => (log.innerHTML = ""));
+  toast("🧹 ログを削除しました");
 });

@@ -5,48 +5,53 @@
   <title>リアルタイム翻訳くん 🌏</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root{
+    :root {
       --blue-1:#eaf4fc; --blue-2:#d6ecfa; --blue-3:#c2e0f7; --blue-4:#a7d2f4;
       --ink:#1f2a44; --red-soft:#f8bcbc;
     }
-    body{ margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
-    h1{ margin:20px 0; }
+    body { margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
+    h1 { margin:20px 0; }
+    .share-wrap { margin:16px auto; max-width:920px; }
+    .share-bar { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+    .share-bar button { padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
+    .share-bar button:hover { background:var(--blue-4); }
 
-    .share-wrap{ margin:16px auto; max-width:920px; }
-    .share-bar{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
-    .share-bar button{ padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
-    .share-bar button:hover{ background:var(--blue-4); }
-    .share-panel{ display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
-    .room-links{ display:grid; gap:8px; line-height:1.8; }
-    .room-links a{ color:#0b68b8; text-decoration:none; word-break:break-all; }
-    .room-links a:hover{ text-decoration:underline; }
-    #qr-wrap{ display:none; margin-top:12px; }
-    #qr-canvas{ background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+    .share-panel { display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
+    .room-links { display:grid; gap:8px; line-height:1.8; }
+    .room-links a { color:#0b68b8; text-decoration:none; word-break:break-all; }
+    .room-links a:hover { text-decoration:underline; }
 
-    #main-app{ display:none; }
-    .top-controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
-    .btn-clear{ background:pink; }
-    select.room-switch{ padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
+    #qr-wrap { display:none; margin-top:12px; }
+    #qr-canvas { background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
 
-    .user-container{ display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
-    .user-box{ text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; }
-    .user-box h3{ margin:6px 0 10px; }
+    #main-app { display:none; }
+    .top-controls { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
+    .btn-clear { background:pink; }
+    select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
 
-    .lang-controls{ display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
-    .lang-controls label{ font-weight:600; }
-    select{ padding:8px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); }
-    .btn-translate{ padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9; background:var(--red-soft); font-weight:600; cursor:pointer; }
-    .btn-translate:hover{ background:#f6a8a8; }
+    .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
+    .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
+    .user-box h3 { margin:6px 0 10px; }
 
-    .text{ width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
-    .text.output{ background:#f9f9ff; font-weight:600; }
+    .copy-btn { position:absolute; top:8px; right:8px; border:none; background:transparent; cursor:pointer; font-size:18px; }
+    .copy-btn.done { color:green; }
 
-    .log{ margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; }
-    .log .input{ color:#6b7280; } .log .output{ color:#0b68b8; font-weight:700; }
+    .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+    .lang-controls label { font-weight:600; }
+    select { padding:8px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); }
+    .btn-translate { padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9; background:var(--red-soft); font-weight:600; cursor:pointer; }
+    .btn-translate:hover { background:#f6a8a8; }
 
-    @media (max-width:768px){
-      .user-container{ flex-direction:column; align-items:center; }
-      .user-box{ width:90%; margin-bottom:20px; }
+    .text { width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
+    .text.output { background:#f9f9ff; font-weight:600; }
+
+    .log { margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; text-align:left; }
+    .log .input { color:#6b7280; }
+    .log .output { color:#0b68b8; font-weight:700; }
+
+    @media (max-width:768px) {
+      .user-container { flex-direction:column; align-items:center; }
+      .user-box { width:90%; margin-bottom:20px; }
     }
   </style>
 </head>
@@ -91,17 +96,14 @@
       <button onclick="leaveRoom()">← 戻る</button>
       <button onclick="emitAddUser()">ユーザー追加</button>
       <button onclick="emitRemoveUser()">ユーザー削除</button>
-
-      <!-- 🌸 新規追加：モード・モデル選択 -->
       <select id="mode-select">
         <option value="意訳">意訳（自然）</option>
         <option value="直訳">直訳（忠実）</option>
       </select>
       <select id="model-select">
-        <option value="quality">精度重視（GPT-4o）</option>
-        <option value="speed">速度重視（GPT-4o-mini）</option>
+        <option value="quality">精度重視</option>
+        <option value="speed">速度重視</option>
       </select>
-
       <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
       <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
         <option value="room1">Room 1</option>

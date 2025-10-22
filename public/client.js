@@ -163,8 +163,10 @@ function addUserBox(uid, name) {
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
     <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
-    <textarea id="output-${uid}" class="text output" readonly></textarea>
-    <button class="copy-btn" id="copy-${uid}" title="コピー">📋</button>
+    <div style="position:relative;">
+      <textarea id="output-${uid}" class="text output" readonly></textarea>
+      <button class="copy-btn" id="copy-${uid}" title="コピー">📋</button>
+    </div>
     <div class="log" id="log-${uid}"></div>
   `;
   usersDiv.appendChild(box);
@@ -202,13 +204,17 @@ function addUserBox(uid, name) {
       });
     });
 
-  // 📋 コピー
+  // 📋 コピー（出力欄右上の半透明ボタン）
   const copyBtn = document.getElementById(`copy-${uid}`);
   copyBtn.addEventListener("click", () => {
     const out = document.getElementById(`output-${uid}`);
     navigator.clipboard.writeText(out.value).then(() => {
       copyBtn.textContent = "✅";
-      setTimeout(() => (copyBtn.textContent = "📋"), 2000);
+      copyBtn.classList.add("done");
+      setTimeout(() => {
+        copyBtn.textContent = "📋";
+        copyBtn.classList.remove("done");
+      }, 2000);
     });
   });
 }
@@ -257,10 +263,18 @@ socket.on("translated", ({ userId, text, inputText }) => {
   const out = document.getElementById(`output-${userId}`);
   const log = document.getElementById(`log-${userId}`);
   if (out) out.value = text;
-  if (log)
-    log.innerHTML =
-      `<div class="input">▶ ${inputText}</div><div class="output">💬 ${text}</div>` +
-      log.innerHTML;
+  if (log) {
+    const line = `
+      <div class="line">
+        <span class="mark">▶</span>
+        <div class="input">${inputText}</div>
+      </div>
+      <div class="line">
+        <span class="mark">💬</span>
+        <div class="output">${text}</div>
+      </div>`;
+    log.innerHTML = line + log.innerHTML;
+  }
 });
 
 socket.on("logs cleared", () => {

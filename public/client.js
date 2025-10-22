@@ -1,217 +1,126 @@
-// client.js — フロントエンド
-// --------------------------------------------
 console.log("✅ client.js loaded");
 
-// Render接続（WebSocket固定）
-const socket = io("https://translate-app-backend.onrender.com", {
-  transports: ["websocket"]
-});
+const backend = "https://translate-app-backend.onrender.com";
+const socket = io(backend);
 
-let roomId = null;
-let currentMode = "意訳";
-let currentModel = "gpt-4o"; // 精度重視
-const logs = [];
+const params = new URLSearchParams(window.location.search);
+let currentRoom = params.get("room") || "room1";
+socket.emit("join-room", currentRoom);
 
-// ----------------------
-// 📌 ページロード時処理
-// ----------------------
-window.addEventListener("DOMContentLoaded", () => {
-  const path = window.location.pathname;
-  if (path.includes("room")) {
-    roomId = path.split("room")[1];
-    socket.emit("joinRoom", roomId);
-    setupRoomUI();
-  }
-});
+const userContainer = document.createElement("div");
+userContainer.className = "user-container";
+document.body.appendChild(userContainer);
 
-// ----------------------
-// 🧩 初期化イベント
-// ----------------------
-socket.on("initRoom", ({ logs: oldLogs, mode, model }) => {
-  currentMode = mode;
-  currentModel = model;
-  oldLogs.forEach(addLog);
-  document.getElementById("mode-select").value = mode;
-  document.getElementById("model-select").value = model;
-});
+let userCount = 3;
 
-// ----------------------
-// 🧠 入力同期
-// ----------------------
-socket.on("inputSync", ({ uid, text }) => {
-  const input = document.getElementById(`input-${uid}`);
-  if (input && input.value !== text) input.value = text;
-});
+const defaultLang = [
+  { in: "日本語", out: "中国語" },
+  { in: "中国語", out: "日本語" },
+  { in: "自動認識", out: "日本語" },
+];
 
-// ----------------------
-// 💬 Streaming表示
-// ----------------------
-socket.on("streamResult", ({ uid, textChunk }) => {
-  const output = document.getElementById(`output-${uid}`);
-  if (output) output.value += textChunk;
-});
-
-// ----------------------
-// ✅ 翻訳完了
-// ----------------------
-socket.on("finalResult", ({ uid, text }) => {
-  const output = document.getElementById(`output-${uid}`);
-  if (output) {
-    output.value = text;
-    addLog({ uid, resultText: text });
-  }
-});
-
-// ----------------------
-// 🧹 ログ削除
-// ----------------------
-socket.on("logsCleared", () => {
-  document.getElementById("logs").innerHTML = "";
-});
-
-// ----------------------
-// 🔄 モード／モデル更新
-// ----------------------
-socket.on("modeUpdated", (mode) => {
-  currentMode = mode;
-  document.getElementById("mode-select").value = mode;
-});
-socket.on("modelUpdated", (model) => {
-  currentModel = model;
-  document.getElementById("model-select").value = model;
-});
-
-// ----------------------
-// 🧩 UI構築
-// ----------------------
-function setupRoomUI() {
-  const container = document.getElementById("app");
-  container.innerHTML = `
-    <div class="toolbar">
-      <button onclick="goBack()">←戻る</button>
-      <button onclick="addUser()">ユーザー追加</button>
-      <button onclick="removeUser()">ユーザー削除</button>
-      <select id="mode-select" onchange="updateMode(this.value)">
-        <option value="意訳">意訳</option>
-        <option value="直訳">直訳</option>
-      </select>
-      <select id="model-select" onchange="updateModel(this.value)">
-        <option value="gpt-4o" selected>精度重視（GPT-4o）</option>
-        <option value="gpt-4o-mini">速度重視（GPT-4o-mini）</option>
-      </select>
-      <button onclick="clearLogs()">全ログ削除</button>
-      <select id="room-switch" onchange="switchRoom(this.value)">
-        <option value="1">Room1</option>
-        <option value="2">Room2</option>
-        <option value="3">Room3</option>
+function buildUI() {
+  document.body.innerHTML = `
+    <h2>${currentRoom.toUpperCase()} 🏠</h2>
+    <div class="top-buttons">
+      <button onclick="backHome()">← 戻る</button>
+      <button onclick="addUser()">＋追加</button>
+      <button onclick="removeUser()">－削除</button>
+      <select id="mode"><option>意訳</option><option>直訳</option></select>
+      <select id="model"><option value="quality">精度重視</option><option value="speed">速度重視</option></select>
+      <button onclick="clearLogs()" style="background:#ffd4d4;">全ログ削除</button>
+      <select id="roomSelect" onchange="switchRoom()">
+        <option value="room1">ルーム1</option>
+        <option value="room2">ルーム2</option>
+        <option value="room3">ルーム3</option>
       </select>
     </div>
-    <div id="user-container"></div>
-    <div id="logs" class="logs"></div>
+    <div id="userContainer" class="user-container"></div>
   `;
-  addUser(); addUser(); addUser(); // 初期3人
+  generateUsers();
 }
 
-// ----------------------
-// 🧍‍♂️ ユーザー管理
-// ----------------------
-let userCount = 0;
+function generateUsers() {
+  const c = document.getElementById("userContainer");
+  c.innerHTML = "";
+  for (let i = 1; i <= userCount; i++) {
+    const b = document.createElement("div");
+    b.className = "user-box";
+    b.innerHTML = `
+      <h3>ユーザー${i}</h3>
+      <div>
+        入力:
+        <select id="inLang${i}">
+          <option>自動認識</option><option>日本語</option><option>中国語</option><option>英語</option><option>韓国語</option>
+        </select>
+        出力:
+        <select id="outLang${i}">
+          <option>日本語</option><option>中国語</option><option>英語</option><option>韓国語</option>
+        </select>
+        <button id="btn${i}" style="background:#ffb5b5;">翻訳</button>
+      </div>
+      <textarea id="input${i}" placeholder="入力してください"></textarea>
+      <textarea id="output${i}" readonly></textarea>
+    `;
+    c.appendChild(b);
+  }
+
+  defaultLang.forEach((cfg, i) => {
+    const n = i + 1;
+    if (document.getElementById(`inLang${n}`)) {
+      document.getElementById(`inLang${n}`).value = cfg.in;
+      document.getElementById(`outLang${n}`).value = cfg.out;
+    }
+  });
+
+  for (let i = 1; i <= userCount; i++) {
+    document.getElementById(`btn${i}`).onclick = () => translate(i);
+  }
+}
+
+function translate(id) {
+  const text = document.getElementById(`input${id}`).value.trim();
+  const fromLang = document.getElementById(`inLang${id}`).value;
+  const toLang = document.getElementById(`outLang${id}`).value;
+  const mode = document.getElementById("mode").value;
+  const model = document.getElementById("model").value;
+  if (!text) return;
+
+  const out = document.getElementById(`output${id}`);
+  out.value = "翻訳中...";
+  socket.emit("translate", { text, mode, fromLang, toLang, model });
+}
+
+socket.on("stream", (data) => {
+  document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = data.text);
+});
+
+socket.on("translated", (data) => {
+  document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = data.text);
+});
+
+socket.on("existing-logs", (logs) => {
+  logs.forEach((log) => {
+    const last = document.querySelector("textarea[id^='output']");
+    if (last) last.value = log.result;
+  });
+});
+
 function addUser() {
-  if (userCount >= 3) return;
-  userCount++;
-  const uid = userCount;
-  const userBox = document.createElement("div");
-  userBox.className = "user-box";
-  userBox.innerHTML = `
-    <h3>ユーザー${uid}</h3>
-    <div class="lang-selects">
-      <label>入力:</label>
-      <select id="input-lang-${uid}">
-        <option>日本語</option>
-        <option>中国語</option>
-        <option>韓国語</option>
-        <option>英語</option>
-        <option>自動</option>
-      </select>
-      <label>出力:</label>
-      <select id="output-lang-${uid}">
-        <option>日本語</option>
-        <option selected>中国語</option>
-        <option>韓国語</option>
-        <option>英語</option>
-      </select>
-      <button class="translate-btn" onclick="translateText(${uid})">翻訳</button>
-    </div>
-    <textarea id="input-${uid}" class="input" placeholder="入力..." oninput="syncInput(${uid})"></textarea>
-    <div class="output-wrap">
-      <textarea id="output-${uid}" class="output" readonly></textarea>
-      <button class="copy-btn" onclick="copyOutput(${uid})">📋</button>
-    </div>
-  `;
-  document.getElementById("user-container").appendChild(userBox);
+  if (userCount < 5) { userCount++; generateUsers(); }
 }
-
 function removeUser() {
-  if (userCount <= 1) return;
-  const last = document.getElementById("user-container").lastChild;
-  last.remove();
-  userCount--;
+  if (userCount > 1) { userCount--; generateUsers(); }
 }
-
-// ----------------------
-// 🔁 各種操作
-// ----------------------
-function syncInput(uid) {
-  const text = document.getElementById(`input-${uid}`).value;
-  socket.emit("inputUpdate", { roomId, uid, text });
-}
-
-function translateText(uid) {
-  const inputText = document.getElementById(`input-${uid}`).value;
-  const inputLang = document.getElementById(`input-lang-${uid}`).value;
-  const outputLang = document.getElementById(`output-lang-${uid}`).value;
-  const output = document.getElementById(`output-${uid}`);
-  output.value = "翻訳中…";
-  socket.emit("translate", { roomId, uid, inputText, inputLang, outputLang });
-}
-
-function updateMode(mode) {
-  socket.emit("updateMode", mode);
-}
-
-function updateModel(model) {
-  socket.emit("updateModel", model);
-}
-
 function clearLogs() {
-  socket.emit("clearLogs", roomId);
+  document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = "");
+}
+function switchRoom() {
+  const room = document.getElementById("roomSelect").value;
+  window.location.href = `/?room=${room}`;
+}
+function backHome() {
+  window.location.href = "https://translate-app-topaz.vercel.app/";
 }
 
-function goBack() {
-  window.location.href = "/";
-}
-
-function switchRoom(room) {
-  window.location.href = `/room${room}`;
-}
-
-// ----------------------
-// 📋 コピー機能
-// ----------------------
-function copyOutput(uid) {
-  const output = document.getElementById(`output-${uid}`);
-  if (output) {
-    navigator.clipboard.writeText(output.value);
-    alert("✅ 翻訳結果をコピーしました");
-  }
-}
-
-// ----------------------
-// 📜 ログ追加
-// ----------------------
-function addLog({ uid, resultText }) {
-  const log = document.createElement("div");
-  log.className = "log-item";
-  log.textContent = `ユーザー${uid}: ${resultText}`;
-  document.getElementById("logs").prepend(log);
-}
+buildUI();

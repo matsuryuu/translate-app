@@ -1,47 +1,83 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>リアルタイム翻訳くん</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="/client.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>リアルタイム翻訳くん 🌏</title>
   <style>
-    body { background:#eaf4fc; font-family:sans-serif; margin:0; padding:20px; text-align:center; }
-    .toolbar { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px; }
-    button, select {
-      border:none; padding:6px 10px; border-radius:8px;
-      background:#c2e0f7; font-size:14px; cursor:pointer;
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #e8f3ff;
+      text-align: center;
+      padding: 20px;
     }
-    button:hover { background:#a7d2f4; }
-    .translate-btn { background:#f8bcbc; }
-    .translate-btn:hover { background:#f6a8a8; }
-    .user-box { background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
-      padding:10px; margin:10px; flex:1; min-width:280px; max-width:400px; }
-    .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; }
-    @media(max-width:768px){
-      .user-container{ flex-direction:column; align-items:center; }
-      .user-box{ width:90%; }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 15px;
     }
-    textarea { width:100%; box-sizing:border-box; border-radius:8px; border:1px solid #ccc;
-      padding:6px; margin-top:6px; resize:vertical; }
-    .output-wrap { position:relative; }
-    .copy-btn {
-      position:absolute; top:6px; right:6px;
-      background:rgba(255,255,255,0.6); border:none; border-radius:6px; padding:2px 6px;
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 16px;
+      margin: 4px;
+      cursor: pointer;
+      background: #cfe5ff;
     }
-    .logs{ text-align:left; margin-top:20px; max-height:250px; overflow:auto; background:white;
-      border-radius:10px; padding:10px; }
-    .log-item{ margin-bottom:6px; font-size:14px; }
+    #qrCanvas {
+      margin: 15px auto;
+    }
+    .links {
+      line-height: 2;
+      font-size: 1rem;
+    }
   </style>
 </head>
 <body>
-  <div id="app">
-    <h1>リアルタイム翻訳くん 🌍</h1>
-    <p>ルームを選択してください</p>
-    <button onclick="window.location.href='/room1'">Room1</button>
-    <button onclick="window.location.href='/room2'">Room2</button>
-    <button onclick="window.location.href='/room3'">Room3</button>
+  <h1>リアルタイム翻訳くん 🌏</h1>
+
+  <div>
+    <button onclick="copyURL()">URLコピー</button>
+    <button onclick="sharePage()">共有</button>
+    <button onclick="showQR()">QRコード</button>
+    <button onclick="showDetail()">詳細共有</button>
   </div>
+
+  <canvas id="qrCanvas"></canvas>
+
+  <div class="links">
+    <h3>各ルーム直リンク</h3>
+    <p><a href="?room=room1">ルーム1</a>: https://translate-app-topaz.vercel.app/?room=room1</p>
+    <p><a href="?room=room2">ルーム2</a>: https://translate-app-topaz.vercel.app/?room=room2</p>
+    <p><a href="?room=room3">ルーム3</a>: https://translate-app-topaz.vercel.app/?room=room3</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    function copyURL() {
+      navigator.clipboard.writeText(window.location.href);
+      alert("URLをコピーしました✨");
+    }
+
+    function sharePage() {
+      if (navigator.share) {
+        navigator.share({
+          title: "リアルタイム翻訳くん",
+          url: window.location.href
+        });
+      } else {
+        alert("共有機能が利用できません📱");
+      }
+    }
+
+    function showQR() {
+      const canvas = document.getElementById("qrCanvas");
+      QRCode.toCanvas(canvas, window.location.href, { width: 160 });
+      canvas.style.display = "block";
+    }
+
+    function showDetail() {
+      alert("Slack, メールなどの外部共有機能は今後追加予定💡");
+    }
+  </script>
 </body>
 </html>

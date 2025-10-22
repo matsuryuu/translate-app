@@ -4,23 +4,61 @@ const backend = "https://translate-app-backend.onrender.com";
 const socket = io(backend);
 
 const params = new URLSearchParams(window.location.search);
-let currentRoom = params.get("room") || "room1";
-socket.emit("join-room", currentRoom);
+let currentRoom = params.get("room");
+const main = document.getElementById("main");
 
-const userContainer = document.createElement("div");
-userContainer.className = "user-container";
-document.body.appendChild(userContainer);
+// ===== トップページ or 翻訳ページを切替 =====
+if (!currentRoom) {
+  renderTopPage();
+} else {
+  renderRoomPage();
+}
 
-let userCount = 3;
+// ===== トップページ =====
+function renderTopPage() {
+  main.innerHTML = `
+    <h1>リアルタイム翻訳くん 🌏</h1>
+    <div>
+      <button onclick="copyURL()">URLコピー</button>
+      <button onclick="sharePage()">共有</button>
+      <button onclick="showQR()">QRコード</button>
+      <button onclick="showDetail()">詳細共有</button>
+    </div>
+    <canvas id="qrCanvas"></canvas>
+    <div class="links">
+      <h3>ルーム選択</h3>
+      <button onclick="enterRoom('room1')">ルーム1</button>
+      <button onclick="enterRoom('room2')">ルーム2</button>
+      <button onclick="enterRoom('room3')">ルーム3</button>
+    </div>
+  `;
+}
 
-const defaultLang = [
-  { in: "日本語", out: "中国語" },
-  { in: "中国語", out: "日本語" },
-  { in: "自動認識", out: "日本語" },
-];
+function enterRoom(room) {
+  window.location.href = `/?room=${room}`;
+}
+function copyURL() {
+  navigator.clipboard.writeText(window.location.href);
+  alert("URLをコピーしました✨");
+}
+function sharePage() {
+  if (navigator.share) {
+    navigator.share({ title: "リアルタイム翻訳くん", url: window.location.href });
+  } else alert("共有機能が利用できません📱");
+}
+function showQR() {
+  const canvas = document.getElementById("qrCanvas");
+  QRCode.toCanvas(canvas, window.location.href, { width: 160 });
+  canvas.style.display = "block";
+}
+function showDetail() { alert("Slack, メールなどの共有は後日追加予定💡"); }
 
-function buildUI() {
-  document.body.innerHTML = `
+// ===== 翻訳ルーム =====
+function renderRoomPage() {
+  socket.emit("join-room", currentRoom);
+  document.title = `${currentRoom} | 翻訳ルーム`;
+
+  main.innerHTML = `
     <h2>${currentRoom.toUpperCase()} 🏠</h2>
     <div class="top-buttons">
       <button onclick="backHome()">← 戻る</button>
@@ -37,10 +75,18 @@ function buildUI() {
     </div>
     <div id="userContainer" class="user-container"></div>
   `;
-  generateUsers();
+  document.getElementById("roomSelect").value = currentRoom;
+  buildUsers();
 }
 
-function generateUsers() {
+let userCount = 3;
+const defaultLang = [
+  { in: "日本語", out: "中国語" },
+  { in: "中国語", out: "日本語" },
+  { in: "自動認識", out: "日本語" },
+];
+
+function buildUsers() {
   const c = document.getElementById("userContainer");
   c.innerHTML = "";
   for (let i = 1; i <= userCount; i++) {
@@ -64,7 +110,6 @@ function generateUsers() {
     `;
     c.appendChild(b);
   }
-
   defaultLang.forEach((cfg, i) => {
     const n = i + 1;
     if (document.getElementById(`inLang${n}`)) {
@@ -72,7 +117,6 @@ function generateUsers() {
       document.getElementById(`outLang${n}`).value = cfg.out;
     }
   });
-
   for (let i = 1; i <= userCount; i++) {
     document.getElementById(`btn${i}`).onclick = () => translate(i);
   }
@@ -94,11 +138,9 @@ function translate(id) {
 socket.on("stream", (data) => {
   document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = data.text);
 });
-
 socket.on("translated", (data) => {
   document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = data.text);
 });
-
 socket.on("existing-logs", (logs) => {
   logs.forEach((log) => {
     const last = document.querySelector("textarea[id^='output']");
@@ -106,21 +148,11 @@ socket.on("existing-logs", (logs) => {
   });
 });
 
-function addUser() {
-  if (userCount < 5) { userCount++; generateUsers(); }
-}
-function removeUser() {
-  if (userCount > 1) { userCount--; generateUsers(); }
-}
-function clearLogs() {
-  document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = "");
-}
+function addUser() { if (userCount < 5) { userCount++; buildUsers(); } }
+function removeUser() { if (userCount > 1) { userCount--; buildUsers(); } }
+function clearLogs() { document.querySelectorAll("textarea[id^='output']").forEach(o => o.value = ""); }
 function switchRoom() {
   const room = document.getElementById("roomSelect").value;
   window.location.href = `/?room=${room}`;
 }
-function backHome() {
-  window.location.href = "https://translate-app-topaz.vercel.app/";
-}
-
-buildUI();
+function backHome() { window.location.href = "/"; }

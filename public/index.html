@@ -23,61 +23,28 @@
       cursor: pointer;
       background: #cfe5ff;
     }
-    #qrCanvas {
-      margin: 15px auto;
+    .links { line-height: 2; font-size: 1rem; margin-top: 20px; }
+    #qrCanvas { margin: 15px auto; }
+    .user-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
+    .user-box {
+      background: white; border-radius: 16px; padding: 10px;
+      width: 340px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    .links {
-      line-height: 2;
-      font-size: 1rem;
+    textarea {
+      width: 95%; height: 100px; border-radius: 10px;
+      border: 1px solid #ccc; resize: none; padding: 6px;
+    }
+    @media (max-width: 768px) {
+      .user-container { flex-direction: column; align-items: center; }
+      .user-box { width: 90%; }
     }
   </style>
 </head>
 <body>
-  <h1>リアルタイム翻訳くん 🌏</h1>
+  <div id="main"></div>
 
-  <div>
-    <button onclick="copyURL()">URLコピー</button>
-    <button onclick="sharePage()">共有</button>
-    <button onclick="showQR()">QRコード</button>
-    <button onclick="showDetail()">詳細共有</button>
-  </div>
-
-  <canvas id="qrCanvas"></canvas>
-
-  <div class="links">
-    <h3>各ルーム直リンク</h3>
-    <p><a href="?room=room1">ルーム1</a>: https://translate-app-topaz.vercel.app/?room=room1</p>
-    <p><a href="?room=room2">ルーム2</a>: https://translate-app-topaz.vercel.app/?room=room2</p>
-    <p><a href="?room=room3">ルーム3</a>: https://translate-app-topaz.vercel.app/?room=room3</p>
-  </div>
-
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script>
-    function copyURL() {
-      navigator.clipboard.writeText(window.location.href);
-      alert("URLをコピーしました✨");
-    }
-
-    function sharePage() {
-      if (navigator.share) {
-        navigator.share({
-          title: "リアルタイム翻訳くん",
-          url: window.location.href
-        });
-      } else {
-        alert("共有機能が利用できません📱");
-      }
-    }
-
-    function showQR() {
-      const canvas = document.getElementById("qrCanvas");
-      QRCode.toCanvas(canvas, window.location.href, { width: 160 });
-      canvas.style.display = "block";
-    }
-
-    function showDetail() {
-      alert("Slack, メールなどの外部共有機能は今後追加予定💡");
-    }
-  </script>
+  <script src="client.js"></script>
 </body>
 </html>

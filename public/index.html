@@ -12,22 +12,17 @@
     body{ margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
     h1{ margin:20px 0; }
 
-    /* トップ共有バー */
     .share-wrap{ margin:16px auto; max-width:920px; }
     .share-bar{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
     .share-bar button{ padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
     .share-bar button:hover{ background:var(--blue-4); }
-
     .share-panel{ display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
     .room-links{ display:grid; gap:8px; line-height:1.8; }
     .room-links a{ color:#0b68b8; text-decoration:none; word-break:break-all; }
     .room-links a:hover{ text-decoration:underline; }
-
-    /* QR */
     #qr-wrap{ display:none; margin-top:12px; }
     #qr-canvas{ background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
 
-    /* メイン */
     #main-app{ display:none; }
     .top-controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
     .btn-clear{ background:pink; }
@@ -96,6 +91,17 @@
       <button onclick="leaveRoom()">← 戻る</button>
       <button onclick="emitAddUser()">ユーザー追加</button>
       <button onclick="emitRemoveUser()">ユーザー削除</button>
+
+      <!-- 🌸 新規追加：モード・モデル選択 -->
+      <select id="mode-select">
+        <option value="意訳">意訳（自然）</option>
+        <option value="直訳">直訳（忠実）</option>
+      </select>
+      <select id="model-select">
+        <option value="quality">精度重視（GPT-4o）</option>
+        <option value="speed">速度重視（GPT-4o-mini）</option>
+      </select>
+
       <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
       <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
         <option value="room1">Room 1</option>

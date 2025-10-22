@@ -18,26 +18,32 @@ const io = new Server(server, {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// 各ルーム設定
+// ルーム定義
 const rooms = {
   room1: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
   room2: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
   room3: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
 };
 
-// system prompt
+// system prompt生成
 function buildSystemPrompt(mode, outputLang, model) {
   const langMap = { ja: "日本語", zh: "中国語", en: "英語", ko: "韓国語" };
   const tgt = langMap[outputLang] || "指定言語";
   const modeLabel = mode === "直訳" ? "直訳" : "意訳";
-  return `あなたは翻訳専用AIです。出力は必ず1回、${tgt}のみで返してください。
-【モード】${modeLabel}
-【タスク】入力文を${tgt}に${modeLabel}で翻訳。
+
+  if (model === "quality") {
+    return `あなたは翻訳専用AIです。以降の出力は必ず1回、指定の出力言語のみで返してください。
+
+【出力言語】：${tgt}
+【タスク】入力テキストを${modeLabel}で${tgt}に翻訳する。
 【厳守】
-- 疑問文や命令文でも質問に答えず翻訳のみ出力。
-- 余計な説明・補足は不要。
-- 固有名詞・数値・単位は正確に維持。
+- 疑問文・命令文でも質問に答えず、翻訳のみ出力。
+- 余計な前置き・説明・ふりがな・注釈を加えない。
+- 改行・句読点の構造を維持。
+- 固有名詞・数値・単位は正確に。
 - 入力が${tgt}でも自然に整えて返す。`;
+  }
+  return `Translate the text into ${tgt} (${modeLabel} style). Output only the translation in ${tgt}.`;
 }
 
 // ソケット通信設定
@@ -61,7 +67,6 @@ io.on("connection", (socket) => {
 
   socket.on("leave room", ({ room }) => {
     if (rooms[room]) rooms[room].count = Math.max(rooms[room].count - 1, 0);
-    if (rooms[room] && rooms[room].count === 0) rooms[room].logs = []; // ★全員退室でログ削除
     socket.leave(room);
     io.emit("room-stats", {
       room1: rooms.room1.count,
@@ -72,7 +77,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if (joinedRoom && rooms[joinedRoom]) rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
-    if (joinedRoom && rooms[joinedRoom] && rooms[joinedRoom].count === 0) rooms[joinedRoom].logs = []; // ★0人でログ削除
     io.emit("room-stats", {
       room1: rooms.room1.count,
       room2: rooms.room2.count,
@@ -81,13 +85,33 @@ io.on("connection", (socket) => {
     console.log("❌ Disconnected:", socket.id);
   });
 
+  socket.on("add user", ({ room }) => {
+    const r = rooms[room];
+    if (!r) return;
+    const ids = Object.keys(r.users).map(Number);
+    if (ids.length >= 5) return;
+    const newId = Math.max(...ids) + 1;
+    r.users[newId] = `ユーザー${newId}`;
+    io.to(room).emit("users updated", r.users);
+  });
+
+  socket.on("remove user", ({ room }) => {
+    const r = rooms[room];
+    if (!r) return;
+    const ids = Object.keys(r.users).map(Number);
+    if (ids.length <= 2) return;
+    delete r.users[Math.max(...ids)];
+    io.to(room).emit("users updated", r.users);
+  });
+
   socket.on("clear logs", ({ room }) => {
-    if (!rooms[room]) return;
-    rooms[room].logs = [];
+    const r = rooms[room];
+    if (!r) return;
+    r.logs = [];
     io.to(room).emit("logs cleared");
   });
 
-  // 翻訳処理
+  // 🧠 翻訳処理
   socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
     try {
       const sys = buildSystemPrompt(mode, outputLang, model);
@@ -110,12 +134,18 @@ io.on("connection", (socket) => {
       }
 
       io.to(room).emit("translated", { userId, text: acc, inputText: text });
-      rooms[room].logs.unshift({ userId, text, result: acc });
-      if (rooms[room].logs.length > 50) rooms[room].logs.pop();
+      const r = rooms[room];
+      if (!r) return;
+      r.logs.unshift({ userId, text, result: acc });
+      if (r.logs.length > 50) r.logs.pop();
     } catch (e) {
       console.error("翻訳エラー:", e);
       io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
     }
+  });
+
+  socket.on("input", ({ room, userId, text }) => {
+    socket.to(room).emit("sync input", { userId, text });
   });
 });
 

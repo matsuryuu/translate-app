@@ -1,130 +1,217 @@
+// client.js — フロントエンド
+// --------------------------------------------
 console.log("✅ client.js loaded");
-const socket = io("https://translate-app-backend.onrender.com",{withCredentials:true,transports:["websocket","polling"]});
-let currentRoom=null;
 
-function toast(msg){
-  const t=document.createElement("div");
-  t.innerText=msg;
-  t.style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#a7d2f4;padding:10px 16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-weight:600;z-index:9999;";
-  document.body.appendChild(t);setTimeout(()=>t.remove(),1600);
-}
-function originUrl(){return window.location.origin;}
+// Render接続（WebSocket固定）
+const socket = io("https://translate-app-backend.onrender.com", {
+  transports: ["websocket"]
+});
 
-// 🩵 共有メニュー
-function copyMainLink(){navigator.clipboard.writeText(originUrl()).then(()=>toast("✅ URLをコピーしました"));}
-function shareLink(){const url=originUrl();if(navigator.share){navigator.share({title:"リアルタイム翻訳くん🌏",text:"この翻訳ルームに入ってね！",url});}else{copyMainLink();}}
-function toggleSharePanel(){const p=document.getElementById("share-panel");p.style.display=(p.style.display==="block"?"none":"block");if(p.style.display==="block"){updateShareLinks();buildRoomLinks();}}
+let roomId = null;
+let currentMode = "意訳";
+let currentModel = "gpt-4o"; // 精度重視
+const logs = [];
 
-function updateShareLinks(){
-  const url=originUrl();
-  document.getElementById("mailto-link").href=`mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(url)}`;
-  document.getElementById("slack-link").href=`https://slack.com/app_redirect?team=&channel=&message=${encodeURIComponent(url)}`;
-}
-function buildRoomLinks(){
-  const root=originUrl();
-  const linksDiv=document.getElementById("room-links");linksDiv.innerHTML="";
-  ["room1","room2","room3"].forEach(r=>{
-    const a=document.createElement("a");
-    a.href=`${root}/?room=${r}`;a.textContent=`${r}: ${root}/?room=${r}`;a.target="_blank";
-    linksDiv.appendChild(a);linksDiv.appendChild(document.createElement("br"));
-  });
-}
-
-// 🧾 QRコード
-function toggleQRCode(){
-  const wrap=document.getElementById("qr-wrap");
-  if(wrap.style.display==="block"){wrap.style.display="none";return;}
-  const canvas=document.getElementById("qr-canvas");
-  new QRious({element:canvas,value:originUrl(),size:220,level:"H"});
-  wrap.style.display="block";toast("🧾 QRコードを生成しました");
-}
-
-// 🪄 ルーム関連
-function joinRoom(room){
-  currentRoom=room;
-  socket.emit("join room",{room});
-  document.getElementById("room-select").style.display="none";
-  document.getElementById("main-app").style.display="block";
-  document.getElementById("room-switch").value=room;
-}
-function leaveRoom(){
-  if(currentRoom){socket.emit("leave room",{room:currentRoom});currentRoom=null;}
-  document.getElementById("main-app").style.display="none";
-  document.getElementById("room-select").style.display="block";
-  document.getElementById("users").innerHTML="";
-}
-function switchRoom(targetRoom){
-  if(targetRoom===currentRoom) return;
-  socket.emit("leave room",{room:currentRoom});
-  socket.emit("join room",{room:targetRoom});
-  currentRoom=targetRoom;
-  document.getElementById("room-switch").value=targetRoom;
-  toast(`🏠 ${targetRoom} に移動しました`);
-}
-
-// 💬 初期入室（スマホトップ対策）
-window.addEventListener("load",()=>{
-  const p=new URLSearchParams(window.location.search);
-  const r=p.get("room");
-  if(r && ["room1","room2","room3"].includes(r)){joinRoom(r);}
-  else{
-    document.getElementById("room-select").style.display="block";
-    document.getElementById("main-app").style.display="none";
+// ----------------------
+// 📌 ページロード時処理
+// ----------------------
+window.addEventListener("DOMContentLoaded", () => {
+  const path = window.location.pathname;
+  if (path.includes("room")) {
+    roomId = path.split("room")[1];
+    socket.emit("joinRoom", roomId);
+    setupRoomUI();
   }
 });
 
-// 🧩 ユーザーUI
-function addUserBox(uid,name){
-  const usersDiv=document.getElementById("users");
-  const box=document.createElement("div");
-  box.className="user-box";box.id=`user-box-${uid}`;
-  box.innerHTML=`
-    <h3>${name}</h3>
-    <div class="lang-controls">
+// ----------------------
+// 🧩 初期化イベント
+// ----------------------
+socket.on("initRoom", ({ logs: oldLogs, mode, model }) => {
+  currentMode = mode;
+  currentModel = model;
+  oldLogs.forEach(addLog);
+  document.getElementById("mode-select").value = mode;
+  document.getElementById("model-select").value = model;
+});
+
+// ----------------------
+// 🧠 入力同期
+// ----------------------
+socket.on("inputSync", ({ uid, text }) => {
+  const input = document.getElementById(`input-${uid}`);
+  if (input && input.value !== text) input.value = text;
+});
+
+// ----------------------
+// 💬 Streaming表示
+// ----------------------
+socket.on("streamResult", ({ uid, textChunk }) => {
+  const output = document.getElementById(`output-${uid}`);
+  if (output) output.value += textChunk;
+});
+
+// ----------------------
+// ✅ 翻訳完了
+// ----------------------
+socket.on("finalResult", ({ uid, text }) => {
+  const output = document.getElementById(`output-${uid}`);
+  if (output) {
+    output.value = text;
+    addLog({ uid, resultText: text });
+  }
+});
+
+// ----------------------
+// 🧹 ログ削除
+// ----------------------
+socket.on("logsCleared", () => {
+  document.getElementById("logs").innerHTML = "";
+});
+
+// ----------------------
+// 🔄 モード／モデル更新
+// ----------------------
+socket.on("modeUpdated", (mode) => {
+  currentMode = mode;
+  document.getElementById("mode-select").value = mode;
+});
+socket.on("modelUpdated", (model) => {
+  currentModel = model;
+  document.getElementById("model-select").value = model;
+});
+
+// ----------------------
+// 🧩 UI構築
+// ----------------------
+function setupRoomUI() {
+  const container = document.getElementById("app");
+  container.innerHTML = `
+    <div class="toolbar">
+      <button onclick="goBack()">←戻る</button>
+      <button onclick="addUser()">ユーザー追加</button>
+      <button onclick="removeUser()">ユーザー削除</button>
+      <select id="mode-select" onchange="updateMode(this.value)">
+        <option value="意訳">意訳</option>
+        <option value="直訳">直訳</option>
+      </select>
+      <select id="model-select" onchange="updateModel(this.value)">
+        <option value="gpt-4o" selected>精度重視（GPT-4o）</option>
+        <option value="gpt-4o-mini">速度重視（GPT-4o-mini）</option>
+      </select>
+      <button onclick="clearLogs()">全ログ削除</button>
+      <select id="room-switch" onchange="switchRoom(this.value)">
+        <option value="1">Room1</option>
+        <option value="2">Room2</option>
+        <option value="3">Room3</option>
+      </select>
+    </div>
+    <div id="user-container"></div>
+    <div id="logs" class="logs"></div>
+  `;
+  addUser(); addUser(); addUser(); // 初期3人
+}
+
+// ----------------------
+// 🧍‍♂️ ユーザー管理
+// ----------------------
+let userCount = 0;
+function addUser() {
+  if (userCount >= 3) return;
+  userCount++;
+  const uid = userCount;
+  const userBox = document.createElement("div");
+  userBox.className = "user-box";
+  userBox.innerHTML = `
+    <h3>ユーザー${uid}</h3>
+    <div class="lang-selects">
       <label>入力:</label>
       <select id="input-lang-${uid}">
-        <option value="auto">自動</option><option value="ja">日本語</option>
-        <option value="zh">中国語</option><option value="ko">韓国語</option><option value="en">英語</option>
+        <option>日本語</option>
+        <option>中国語</option>
+        <option>韓国語</option>
+        <option>英語</option>
+        <option>自動</option>
       </select>
       <label>出力:</label>
       <select id="output-lang-${uid}">
-        <option value="ja">日本語</option><option value="zh">中国語</option>
-        <option value="ko">韓国語</option><option value="en">英語</option>
+        <option>日本語</option>
+        <option selected>中国語</option>
+        <option>韓国語</option>
+        <option>英語</option>
       </select>
-      <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
+      <button class="translate-btn" onclick="translateText(${uid})">翻訳</button>
     </div>
-    <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
-    <textarea id="output-${uid}" class="text output" readonly></textarea>
-    <div class="log" id="log-${uid}"></div>`;
-  usersDiv.appendChild(box);
-
-  if(uid===1){setLang(uid,"ja","zh");}
-  if(uid===2){setLang(uid,"zh","ja");}
-  if(uid===3){setLang(uid,"auto","ja");}
-
-  const inputEl=document.getElementById(`input-${uid}`);
-  inputEl.addEventListener("input",e=>socket.emit("input",{room:currentRoom,userId:uid,text:e.target.value}));
-  document.getElementById(`btn-translate-${uid}`).addEventListener("click",()=>{
-    const text=inputEl.value;
-    const inputLang=document.getElementById(`input-lang-${uid}`).value;
-    const outputLang=document.getElementById(`output-lang-${uid}`).value;
-    const out=document.getElementById(`output-${uid}`);
-    out.value="翻訳中…";
-    socket.emit("translate",{room:currentRoom,userId:uid,text,inputLang,outputLang});
-  });
+    <textarea id="input-${uid}" class="input" placeholder="入力..." oninput="syncInput(${uid})"></textarea>
+    <div class="output-wrap">
+      <textarea id="output-${uid}" class="output" readonly></textarea>
+      <button class="copy-btn" onclick="copyOutput(${uid})">📋</button>
+    </div>
+  `;
+  document.getElementById("user-container").appendChild(userBox);
 }
-function setLang(uid,i,o){document.getElementById(`input-lang-${uid}`).value=i;document.getElementById(`output-lang-${uid}`).value=o;}
 
-function emitAddUser(){socket.emit("add user",{room:currentRoom});}
-function emitRemoveUser(){socket.emit("remove user",{room:currentRoom});}
-function clearAllLogs(){socket.emit("clear logs",{room:currentRoom});}
+function removeUser() {
+  if (userCount <= 1) return;
+  const last = document.getElementById("user-container").lastChild;
+  last.remove();
+  userCount--;
+}
 
-// Socketイベント
-socket.on("init users",u=>{const d=document.getElementById("users");d.innerHTML="";Object.entries(u).forEach(([id,n])=>addUserBox(Number(id),n));});
-socket.on("users updated",u=>{const d=document.getElementById("users");d.innerHTML="";Object.entries(u).forEach(([id,n])=>addUserBox(Number(id),n));});
-socket.on("sync input",({userId,text})=>{const el=document.getElementById(`input-${userId}`);if(el&&el.value!==text)el.value=text;});
-socket.on("stream result",({userId,partial})=>{const el=document.getElementById(`output-${userId}`);if(el)el.value=partial;});
-socket.on("final result",({userId,result,inputText})=>{
-  const out=document.getElementById(`output-${userId}`),log=document.getElementById(`log-${userId}`);
-  if(out)out.value=result;if(log)log.innerHTML=`<div class='input'>${inputText}</div><div class='output'>${result}</div>`+log.innerHTML;
-});
+// ----------------------
+// 🔁 各種操作
+// ----------------------
+function syncInput(uid) {
+  const text = document.getElementById(`input-${uid}`).value;
+  socket.emit("inputUpdate", { roomId, uid, text });
+}
+
+function translateText(uid) {
+  const inputText = document.getElementById(`input-${uid}`).value;
+  const inputLang = document.getElementById(`input-lang-${uid}`).value;
+  const outputLang = document.getElementById(`output-lang-${uid}`).value;
+  const output = document.getElementById(`output-${uid}`);
+  output.value = "翻訳中…";
+  socket.emit("translate", { roomId, uid, inputText, inputLang, outputLang });
+}
+
+function updateMode(mode) {
+  socket.emit("updateMode", mode);
+}
+
+function updateModel(model) {
+  socket.emit("updateModel", model);
+}
+
+function clearLogs() {
+  socket.emit("clearLogs", roomId);
+}
+
+function goBack() {
+  window.location.href = "/";
+}
+
+function switchRoom(room) {
+  window.location.href = `/room${room}`;
+}
+
+// ----------------------
+// 📋 コピー機能
+// ----------------------
+function copyOutput(uid) {
+  const output = document.getElementById(`output-${uid}`);
+  if (output) {
+    navigator.clipboard.writeText(output.value);
+    alert("✅ 翻訳結果をコピーしました");
+  }
+}
+
+// ----------------------
+// 📜 ログ追加
+// ----------------------
+function addLog({ uid, resultText }) {
+  const log = document.createElement("div");
+  log.className = "log-item";
+  log.textContent = `ユーザー${uid}: ${resultText}`;
+  document.getElementById("logs").prepend(log);
+}

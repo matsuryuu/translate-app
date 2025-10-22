@@ -1,99 +1,126 @@
+// index.js — Render (Server)
+// --------------------------------------------
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import OpenAI from "openai";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["https://translate-app-topaz.vercel.app", "http://localhost:3000"],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+    origin: ["https://translate-app-topaz.vercel.app"],
+    methods: ["GET", "POST"]
+  },
+  transports: ["websocket"], // ✅ WebSocket固定（polling無効）
 });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// 各部屋の状態
-const rooms = {
-  room1: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [] },
-  room2: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [] },
-  room3: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [] }
-};
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
+app.use(express.static("public"));
+
+const PORT = process.env.PORT || 10000;
+
+// 🔸 各ルームごとのログ保存（最大50件）
+const roomLogs = {};
+
+// 🔹 モード／モデル状態（全体共有）
+let currentMode = "意訳";
+let currentModel = "gpt-4o"; // 精度重視が初期値
+
+// --------------------------------------------
+// 🔸 ソケット通信設定
+// --------------------------------------------
 io.on("connection", (socket) => {
   console.log("✅ Connected:", socket.id);
-  let joinedRoom = null;
 
-  socket.on("join room", ({ room }) => {
-    if (!rooms[room]) return;
-    joinedRoom = room;
-    socket.join(room);
-    socket.emit("init users", rooms[room].users);
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    if (!roomLogs[roomId]) roomLogs[roomId] = [];
+
+    // 参加ユーザーへログと設定を送信
+    socket.emit("initRoom", {
+      logs: roomLogs[roomId],
+      mode: currentMode,
+      model: currentModel
+    });
   });
 
-  socket.on("leave room", ({ room }) => socket.leave(room));
-
-  socket.on("input", ({ room, userId, text }) => {
-    socket.to(room).emit("sync input", { userId, text });
+  // 入力内容を同期
+  socket.on("inputUpdate", ({ roomId, uid, text }) => {
+    socket.to(roomId).emit("inputSync", { uid, text });
   });
 
-  socket.on("add user", ({ room }) => {
-    const r = rooms[room];
-    if (!r) return;
-    const ids = Object.keys(r.users).map(Number);
-    if (ids.length >= 5) return;
-    const newId = Math.max(...ids) + 1;
-    r.users[newId] = `ユーザー${newId}`;
-    io.to(room).emit("users updated", r.users);
+  // モード更新
+  socket.on("updateMode", (mode) => {
+    currentMode = mode;
+    io.emit("modeUpdated", mode);
   });
 
-  socket.on("remove user", ({ room }) => {
-    const r = rooms[room];
-    if (!r) return;
-    const ids = Object.keys(r.users).map(Number);
-    if (ids.length <= 2) return;
-    delete r.users[Math.max(...ids)];
-    io.to(room).emit("users updated", r.users);
+  // モデル更新
+  socket.on("updateModel", (model) => {
+    currentModel = model;
+    io.emit("modelUpdated", model);
   });
 
-  // 翻訳
-  socket.on("translate", async ({ room, userId, text, inputLang, outputLang }) => {
+  // 🔸 翻訳処理
+  socket.on("translate", async ({ roomId, uid, inputText, inputLang, outputLang }) => {
     try {
-      const sys = `
-あなたは翻訳専用AIです。
-絶対に質問に回答したり、新しい内容を作ったりしてはいけません。
-入力文の意味を理解せず、文法構造に忠実に ${outputLang} へ翻訳してください。
-質問文であっても「答え」ではなく「質問文そのもの」を翻訳してください。`;
+      // 翻訳用プロンプト生成
+      const prompt =
+        currentMode === "意訳"
+          ? `Translate the following text naturally into ${outputLang}. 
+             Use accurate technical terms if needed. Do not answer questions.`
+          : `Translate the following text literally into ${outputLang}, keeping the original order. Do not answer questions.`;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      let resultText = "";
+
+      const stream = await openai.chat.completions.create({
+        model: currentModel,
         messages: [
-          { role: "system", content: sys },
-          { role: "user", content: text }
+          { role: "system", content: prompt },
+          { role: "user", content: inputText }
         ],
-        stream: true
+        temperature: 0.2,
+        stream: true,
+        max_tokens: 256
       });
 
-      let acc = "";
-      for await (const chunk of completion) {
+      // 🔹 Streamingで即時反映
+      for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content || "";
-        if (!delta) continue;
-        acc += delta;
-        io.to(room).emit("stream result", { userId, partial: acc });
+        if (delta) {
+          resultText += delta;
+          io.to(roomId).emit("streamResult", { uid, textChunk: delta });
+        }
       }
 
-      io.to(room).emit("final result", { userId, result: acc, inputText: text });
-    } catch (e) {
-      console.error(e);
-      io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
+      // 完了通知＋ログ登録
+      io.to(roomId).emit("finalResult", { uid, text: resultText });
+      roomLogs[roomId].push({ uid, inputText, resultText });
+      if (roomLogs[roomId].length > 50) roomLogs[roomId].shift();
+    } catch (err) {
+      console.error("❌ Translation error:", err);
+      socket.emit("finalResult", { uid, text: "⚠️ 翻訳エラーが発生しました。" });
     }
   });
 
-  socket.on("disconnect", () => console.log("❌ Disconnected:", socket.id));
+  // 全ログ削除
+  socket.on("clearLogs", (roomId) => {
+    roomLogs[roomId] = [];
+    io.to(roomId).emit("logsCleared");
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ Disconnected:", socket.id);
+  });
 });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
+});

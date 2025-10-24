@@ -5,94 +5,24 @@ const socket = io("https://translate-app-backend.onrender.com", {
 });
 let currentRoom = null;
 
+// ===== デバウンス =====
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function toast(msg) {
   const t = document.createElement("div");
   t.innerText = msg;
-  t.style =
-    "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#a7d2f4;padding:10px 16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-weight:600;z-index:9999;";
+  t.style = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#a7d2f4;padding:10px 16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-weight:600;z-index:9999;";
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 1600);
 }
 
-function originUrl() {
-  return window.location.origin;
-}
-
-// =============================
-// 📱 共有メニュー関連
-// =============================
-function copyMainLink() {
-  navigator.clipboard.writeText(originUrl()).then(() =>
-    toast("✅ URLをコピーしました")
-  );
-}
-
-function shareLink() {
-  const url = originUrl();
-  if (navigator.share) {
-    navigator.share({
-      title: "リアルタイム翻訳くん🌏",
-      text: "この翻訳ルームに入ってね！",
-      url,
-    });
-  } else {
-    copyMainLink();
-  }
-}
-
-function toggleSharePanel() {
-  const p = document.getElementById("share-panel");
-  p.style.display = p.style.display === "block" ? "none" : "block";
-  if (p.style.display === "block") {
-    updateShareLinks();
-    buildRoomLinks();
-  }
-}
-
-function updateShareLinks() {
-  const url = originUrl();
-  document.getElementById("mailto-link").href = `mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(
-    url
-  )}`;
-  document.getElementById(
-    "slack-link"
-  ).href = `https://slack.com/app_redirect?team=&channel=&message=${encodeURIComponent(
-    url
-  )}`;
-}
-
-function buildRoomLinks() {
-  const root = originUrl();
-  const linksDiv = document.getElementById("room-links");
-  linksDiv.innerHTML = "";
-  ["room1", "room2", "room3"].forEach((r) => {
-    const a = document.createElement("a");
-    a.href = `${root}/?room=${r}`;
-    a.textContent = `${r}: ${root}/?room=${r}`;
-    a.target = "_blank";
-    linksDiv.appendChild(a);
-    linksDiv.appendChild(document.createElement("br"));
-  });
-}
-
-// =============================
-// 🧾 QRコード生成
-// =============================
-function toggleQRCode() {
-  const wrap = document.getElementById("qr-wrap");
-  if (wrap.style.display === "block") {
-    wrap.style.display = "none";
-    return;
-  }
-  const canvas = document.getElementById("qr-canvas");
-  new QRious({ element: canvas, value: originUrl(), size: 220, level: "H" });
-  wrap.style.display = "block";
-  toast("🧾 QRコードを生成しました");
-}
-
-// =============================
-// 🏠 ルーム関連
-// =============================
+// ===== ルーム関連 =====
 function joinRoom(room) {
   currentRoom = room;
   socket.emit("join room", { room });
@@ -102,41 +32,21 @@ function joinRoom(room) {
 }
 
 function leaveRoom() {
-  if (currentRoom) {
-    socket.emit("leave room", { room: currentRoom });
-    currentRoom = null;
-  }
+  if (currentRoom) socket.emit("leave room", { room: currentRoom });
+  currentRoom = null;
   document.getElementById("main-app").style.display = "none";
   document.getElementById("room-select").style.display = "block";
   document.getElementById("users").innerHTML = "";
 }
 
-function switchRoom(targetRoom) {
-  if (targetRoom === currentRoom) return;
-  socket.emit("leave room", { room: currentRoom });
-  socket.emit("join room", { room: targetRoom });
-  currentRoom = targetRoom;
-  document.getElementById("room-switch").value = targetRoom;
-  toast(`🏠 ${targetRoom} に移動しました`);
+function switchRoom(val) {
+  if (val === currentRoom) return;
+  if (currentRoom) socket.emit("leave room", { room: currentRoom });
+  socket.emit("join room", { room: val });
+  currentRoom = val;
 }
 
-// =============================
-// 🚀 初期処理
-// =============================
-window.addEventListener("load", () => {
-  const p = new URLSearchParams(window.location.search);
-  const r = p.get("room");
-  if (r && ["room1", "room2", "room3"].includes(r)) {
-    joinRoom(r);
-  } else {
-    document.getElementById("room-select").style.display = "block";
-    document.getElementById("main-app").style.display = "none";
-  }
-});
-
-// =============================
-// 👥 ユーザーUI生成
-// =============================
+// ===== UI生成 =====
 function addUserBox(uid, name) {
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -174,60 +84,44 @@ function addUserBox(uid, name) {
   `;
   usersDiv.appendChild(box);
 
-  // 初期設定
+  // デフォルト設定
   if (uid === 1) setLang(uid, "ja", "zh");
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
 
-  // 入力同期
   const inputEl = document.getElementById(`input-${uid}`);
-  inputEl.addEventListener("input", (e) =>
-    socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value })
+  inputEl.addEventListener(
+    "input",
+    debounce((e) => socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value }), 200)
   );
 
-  // 翻訳ボタン
-  document
-    .getElementById(`btn-translate-${uid}`)
-    .addEventListener("click", () => {
-      const text = inputEl.value;
-      const inputLang = document.getElementById(`input-lang-${uid}`).value;
-      const outputLang = document.getElementById(`output-lang-${uid}`).value;
-      const mode = document.getElementById("mode-select").value;
-      const model = document.getElementById("model-select").value;
-      const out = document.getElementById(`output-${uid}`);
-      out.value = "翻訳中…";
-      socket.emit("translate", {
-        room: currentRoom,
-        userId: uid,
-        text,
-        inputLang,
-        outputLang,
-        mode,
-        model,
-      });
-    });
+  // 翻訳
+  document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
+    const text = inputEl.value;
+    const inputLang = document.getElementById(`input-lang-${uid}`).value;
+    const outputLang = document.getElementById(`output-lang-${uid}`).value;
+    const mode = document.getElementById("mode-select").value;
+    const model = document.getElementById("model-select").value;
+    const out = document.getElementById(`output-${uid}`);
+    out.value = "翻訳中…";
+    socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang, mode, model });
+  });
 
-  // 📋 コピー（出力欄右上の半透明ボタン）
+  // コピー
   const copyBtn = document.getElementById(`copy-${uid}`);
   copyBtn.addEventListener("click", () => {
     const out = document.getElementById(`output-${uid}`);
     navigator.clipboard.writeText(out.value).then(() => {
       copyBtn.textContent = "✅";
-      copyBtn.classList.add("done");
-      setTimeout(() => {
-        copyBtn.textContent = "📋";
-        copyBtn.classList.remove("done");
-      }, 2000);
+      setTimeout(() => (copyBtn.textContent = "📋"), 2000);
     });
   });
 
-  // 🗑️ クリア（入力欄右上の半透明ボタン）
+  // クリア
   const clearBtn = document.getElementById(`clear-${uid}`);
   clearBtn.addEventListener("click", () => {
-    const input = document.getElementById(`input-${uid}`);
-    input.value = "";
+    inputEl.value = "";
     socket.emit("input", { room: currentRoom, userId: uid, text: "" });
-    toast("✏️ 入力をクリアしました");
   });
 }
 
@@ -236,19 +130,11 @@ function setLang(uid, i, o) {
   document.getElementById(`output-lang-${uid}`).value = o;
 }
 
-function emitAddUser() {
-  socket.emit("add user", { room: currentRoom });
-}
-function emitRemoveUser() {
-  socket.emit("remove user", { room: currentRoom });
-}
 function clearAllLogs() {
   socket.emit("clear logs", { room: currentRoom });
 }
 
-// =============================
-// 💬 Socketイベント
-// =============================
+// ===== Socketイベント =====
 socket.on("init users", (u) => {
   const d = document.getElementById("users");
   d.innerHTML = "";
@@ -261,6 +147,25 @@ socket.on("users updated", (u) => {
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
 });
 
+socket.on("room-stats", (counts) => {
+  ["room1", "room2", "room3"].forEach((r) => {
+    const opt = document.querySelector(`#room-switch option[value='${r}']`);
+    if (opt) opt.textContent = `${r.replace("room", "Room ")}（接続者数: ${counts[r] || 0}）`;
+  });
+});
+
+socket.on("existing-logs", (logs) => {
+  logs.forEach(({ text, result, userId }) => {
+    const log = document.getElementById(`log-${userId || 1}`);
+    if (log) {
+      const entry = `
+        <div class="line"><span class="mark">📝</span><div class="input">${text}</div></div>
+        <div class="line"><span class="mark">💬</span><div class="output">${result}</div></div>`;
+      log.innerHTML += entry;
+    }
+  });
+});
+
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
   if (el && el.value !== text) el.value = text;
@@ -268,7 +173,7 @@ socket.on("sync input", ({ userId, text }) => {
 
 socket.on("stream", ({ userId, text }) => {
   const el = document.getElementById(`output-${userId}`);
-  if (el) el.value = text;
+  if (el) requestAnimationFrame(() => (el.value = text));
 });
 
 socket.on("translated", ({ userId, text, inputText }) => {
@@ -277,19 +182,12 @@ socket.on("translated", ({ userId, text, inputText }) => {
   if (out) out.value = text;
   if (log) {
     const line = `
-      <div class="line">
-        <span class="mark">📝</span>
-        <div class="input">${inputText}</div>
-      </div>
-      <div class="line">
-        <span class="mark">💬</span>
-        <div class="output">${text}</div>
-      </div>`;
+      <div class="line"><span class="mark">📝</span><div class="input">${inputText}</div></div>
+      <div class="line"><span class="mark">💬</span><div class="output">${text}</div></div>`;
     log.innerHTML = line + log.innerHTML;
   }
 });
 
 socket.on("logs cleared", () => {
-  document.querySelectorAll(".log").forEach((log) => (log.innerHTML = ""));
-  toast("🧹 ログを削除しました");
+  document.querySelectorAll(".log").forEach((l) => (l.innerHTML = ""));
 });

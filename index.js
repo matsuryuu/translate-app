@@ -112,38 +112,41 @@ io.on("connection", (socket) => {
   });
 
   // 🧠 翻訳処理
-  socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
-    try {
-      const sys = buildSystemPrompt(mode, outputLang, model);
-      const modelName = model === "speed" ? "gpt-4o-mini" : "gpt-4o";
-      const completion = await openai.chat.completions.create({
-        model: modelName,
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: text },
-        ],
-        stream: true,
-      });
+socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
+  try {
+    // 🔸 翻訳開始時に全端末へ「翻訳中...」を送信
+    io.to(room).emit("stream", { userId, text: "翻訳中..." });
 
-      let acc = "";
-      for await (const chunk of completion) {
-        const delta = chunk.choices[0]?.delta?.content || "";
-        if (!delta) continue;
-        acc += delta;
-        io.to(room).emit("stream", { userId, text: acc });
-      }
-      
-      io.to(room).emit("translated", { userId, text: acc, inputText: text });
-      const r = rooms[room];
-      if (!r) return;
-      r.logs.unshift({ userId, text, result: acc });
-      if (r.logs.length > 50) r.logs.pop();
-    } catch (e) {
-      console.error("翻訳エラー:", e);
-      io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
-      io.to(room).emit("stream", { userId, text: "翻訳中..." });
+    const sys = buildSystemPrompt(mode, outputLang, model);
+    const modelName = model === "speed" ? "gpt-4o-mini" : "gpt-4o";
+    const completion = await openai.chat.completions.create({
+      model: modelName,
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: text },
+      ],
+      stream: true,
+    });
+
+    let acc = "";
+    for await (const chunk of completion) {
+      const delta = chunk.choices[0]?.delta?.content || "";
+      if (!delta) continue;
+      acc += delta;
+      io.to(room).emit("stream", { userId, text: acc });
     }
-  });
+
+    io.to(room).emit("translated", { userId, text: acc, inputText: text });
+    const r = rooms[room];
+    if (!r) return;
+    r.logs.unshift({ userId, text, result: acc });
+    if (r.logs.length > 50) r.logs.pop();
+
+  } catch (e) {
+    console.error("翻訳エラー:", e);
+    io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
+  }
+});
 
   socket.on("input", ({ room, userId, text }) => {
     socket.to(room).emit("sync input", { userId, text });

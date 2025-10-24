@@ -143,7 +143,19 @@ function setLang(uid, i, o) {
 }
 
 function clearAllLogs() {
+  const btn = document.getElementById("btn-clear-logs");
+  btn.textContent = "削除中…";
+  btn.classList.add("busy");
   socket.emit("clear logs", { room: currentRoom });
+  setTimeout(() => {
+    btn.textContent = "✅ 削除済み";
+    btn.classList.remove("busy");
+    btn.classList.add("done");
+    setTimeout(() => {
+      btn.textContent = "全ログ削除";
+      btn.classList.remove("done");
+    }, 1500);
+  }, 600);
 }
 window.clearAllLogs = clearAllLogs;
 

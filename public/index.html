@@ -17,17 +17,15 @@
     .share-bar button { padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
     .share-bar button:hover { background:var(--blue-4); }
 
-    .share-panel { display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
-    .room-links { display:grid; gap:8px; line-height:1.8; }
-    .room-links a { color:#0b68b8; text-decoration:none; word-break:break-all; }
-    .room-links a:hover { text-decoration:underline; }
-
     #qr-wrap { display:none; margin-top:12px; }
     #qr-canvas { background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
 
     #main-app { display:none; }
     .top-controls { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
-    .btn-clear { background:pink; }
+    .btn-clear { background:pink; border-radius:8px; border:1px solid #b8c7d9; font-weight:600; cursor:pointer; padding:8px 12px; }
+    .btn-clear.busy { opacity:0.6; pointer-events:none; }
+    .btn-clear.done { background:#a7d2f4; }
+
     select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
 
     .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
@@ -71,20 +69,7 @@
   <div class="share-buttons">
     <button onclick="copyMainLink(this)">📋 URLコピー</button>
     <button onclick="shareLink(this)">📱 シェア</button>
-    <button onclick="toggleSharePanel(this)">📄 詳細</button>
     <button onclick="toggleQRCode(this)">🧾 QR表示</button>
-  </div>
-
-  <!-- 📄 詳細パネル（ルームリンク＋共有リンク） -->
-  <div id="share-panel" class="share-panel" style="display:none;">
-    <div class="room-links">
-      <div><strong>各ルーム直リンク</strong></div>
-      <div id="room-links"></div>
-    </div>
-    <div class="room-links">
-      <a id="mailto-link" target="_blank">📧 メールで共有</a><br>
-      <a id="slack-link" target="_blank">💬 Slackに貼る</a>
-    </div>
   </div>
 
   <!-- 🧾 QRコード表示領域 -->
@@ -116,7 +101,8 @@
         <option value="quality">精度重視</option>
         <option value="speed">速度重視</option>
       </select>
-      <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
+      <!-- ✨ログ削除に視覚アクションを追加 -->
+      <button class="btn-clear" id="btn-clear-logs" onclick="clearAllLogs()">全ログ削除</button>
       <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
         <option value="room1">Room 1</option>
         <option value="room2">Room 2</option>

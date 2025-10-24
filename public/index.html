@@ -34,14 +34,23 @@
     .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
     .user-box h3 { margin:6px 0 10px; }
 
-    .copy-btn, .clear-btn {
+    /* 🩵 コピーアイコン半透明重ね配置（角ギリギリ） */
+    .copy-btn {
       position:absolute; top:6px; right:6px;
       border:none; background:rgba(255,255,255,0.6);
       cursor:pointer; font-size:18px; border-radius:8px;
       transition:all .2s; padding:4px;
     }
-    .copy-btn:hover, .clear-btn:hover { background:rgba(255,255,255,0.9); }
+    .copy-btn:hover { background:rgba(255,255,255,0.9); }
     .copy-btn.done { color:green; }
+    /* 🗑️ 入力欄クリアボタン（コピーと同じ見た目） */
+    .clear-btn {
+      position:absolute; top:6px; right:6px;
+      border:none; background:rgba(255,255,255,0.6);
+      cursor:pointer; font-size:18px; border-radius:8px;
+      transition:all .2s; padding:4px;
+    }
+    .clear-btn:hover { background:rgba(255,255,255,0.9); }
 
     .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
     .lang-controls label { font-weight:600; }
@@ -125,66 +134,6 @@
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-
-  <!-- 🌸 共有ボタン・QR用 関数ブロック -->
-  <script>
-    function originUrl(){ return window.location.origin; }
-
-    function copyMainLink(){
-      navigator.clipboard.writeText(originUrl()).then(()=>alert("URLをコピーしました📋"));
-    }
-
-    function shareLink(){
-      const url = originUrl();
-      if(navigator.share){
-        navigator.share({
-          title:"リアルタイム翻訳くん🌏",
-          text:"この翻訳ルームに入ってね！",
-          url:url
-        });
-      } else { copyMainLink(); }
-    }
-
-    function toggleSharePanel(){
-      const panel=document.getElementById("share-panel");
-      if(!panel) return;
-      panel.style.display = panel.style.display==="block"?"none":"block";
-      if(panel.style.display==="block"){ updateShareLinks(); buildRoomLinks(); }
-    }
-
-    function updateShareLinks(){
-      const url = originUrl();
-      const mail=document.getElementById("mailto-link");
-      const slack=document.getElementById("slack-link");
-      if(mail) mail.href=`mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(url)}`;
-      if(slack) slack.href=`https://slack.com/app_redirect?message=${encodeURIComponent(url)}`;
-    }
-
-    function buildRoomLinks(){
-      const root = originUrl();
-      const linksDiv=document.getElementById("room-links");
-      if(!linksDiv) return;
-      linksDiv.innerHTML="";
-      ["room1","room2","room3"].forEach(r=>{
-        const a=document.createElement("a");
-        a.href=`${root}/?room=${r}`;
-        a.textContent=`${r}: ${root}/?room=${r}`;
-        a.target="_blank";
-        linksDiv.appendChild(a);
-        linksDiv.appendChild(document.createElement("br"));
-      });
-    }
-
-    function toggleQRCode(){
-      const wrap=document.getElementById("qr-wrap");
-      if(!wrap) return;
-      if(wrap.style.display==="block"){ wrap.style.display="none"; return; }
-      const canvas=document.getElementById("qr-canvas");
-      new QRious({ element:canvas, value:originUrl(), size:220, level:"H" });
-      wrap.style.display="block";
-    }
-  </script>
-
   <script src="client.js"></script>
 </body>
 </html>

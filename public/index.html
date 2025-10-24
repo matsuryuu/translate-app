@@ -81,6 +81,53 @@
       .user-container { flex-direction:column; align-items:center; }
       .user-box { width:90%; margin-bottom:20px; }
     }
+/* === 🧩 入出力欄ボタンを枠外に安全に浮かせる === */
+
+/* 入力・出力欄を囲むdivを明示的に相対配置・オーバーフロー許可 */
+.user-box > div {
+  position: relative;
+  overflow: visible; /* ← ボタンを外に出しても切れない */
+}
+
+/* 🩵 ボタンの浮かせ設定 */
+.copy-btn,
+.clear-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.85);
+  border: none;
+  font-size: 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 4px;
+  transition: all 0.25s ease;
+  /* 👇 見た目だけ外へ出す */
+  transform: translate(40%, -40%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* hover時の軽いエフェクト */
+.copy-btn:hover,
+.clear-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translate(40%, -40%) scale(1.05);
+}
+
+/* 出力欄内の文字がボタンと重ならないように調整 */
+.text.output {
+  padding-right: 32px;
+}
+
+/* 📱 モバイルでの微調整 */
+@media (max-width: 768px) {
+  .copy-btn,
+  .clear-btn {
+    transform: translate(30%, -30%);
+  }
+}
+
   </style>
 </head>
 <body>

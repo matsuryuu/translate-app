@@ -142,22 +142,6 @@ function setLang(uid, i, o) {
   document.getElementById(`output-lang-${uid}`).value = o;
 }
 
-function clearAllLogs() {
-  const btn = document.getElementById("btn-clear-logs");
-  btn.textContent = "削除中…";
-  btn.classList.add("busy");
-  socket.emit("clear logs", { room: currentRoom });
-  setTimeout(() => {
-    btn.textContent = "✅ 削除済み";
-    btn.classList.remove("busy");
-    btn.classList.add("done");
-    setTimeout(() => {
-      btn.textContent = "全ログ削除";
-      btn.classList.remove("done");
-    }, 1500);
-  }, 600);
-}
-window.clearAllLogs = clearAllLogs;
 
 // ===== Socketイベント =====
 socket.on("init users", (u) => {
@@ -278,24 +262,23 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 });
 
-// ===== 🏠 Homeボタン機能 =====
+// ===== 🏠 Homeボタン =====
 function goHome() {
   window.location.href = "/";
 }
 
-// ===== ユーザー追加・削除機能（最大5ユーザー対応＋青ボタン演出） =====
-function getUserCount() {
-  return document.querySelectorAll(".user-box").length;
-}
-
-// 💠 ボタン点滅フィードバック
+// ===== 💠 ボタン点滅フィードバック =====
 function flashButton(btn) {
   if (!btn) return;
   btn.classList.add("btn-flash");
   setTimeout(() => btn.classList.remove("btn-flash"), 400);
 }
 
-// ➕ ユーザー追加
+// ===== 👤 ユーザー追加・削除 =====
+function getUserCount() {
+  return document.querySelectorAll(".user-box").length;
+}
+
 window.emitAddUser = function (btn) {
   flashButton(btn);
   const count = getUserCount();
@@ -308,7 +291,6 @@ window.emitAddUser = function (btn) {
   toast(`👤 ユーザー${newId} を追加しました`);
 };
 
-// ➖ ユーザー削除
 window.emitRemoveUser = function (btn) {
   flashButton(btn);
   const count = getUserCount();
@@ -319,4 +301,19 @@ window.emitRemoveUser = function (btn) {
   const target = document.getElementById(`user-box-${count}`);
   if (target) target.remove();
   toast(`👋 ユーザー${count} を削除しました`);
+};
+
+// ===== 🗑️ 全ログ削除機能修正版 =====
+window.emitClearLogs = function (btn) {
+  flashButton(btn);
+  const room = document.getElementById("room-switch").value;
+  socket.emit("clear logs", { room }); // ← サーバーへ通知（復旧ポイント）
+  btn.classList.add("btn-busy");
+  btn.textContent = "削除中…";
+
+  setTimeout(() => {
+    btn.classList.remove("btn-busy");
+    btn.textContent = "✅ 削除完了";
+    setTimeout(() => (btn.textContent = "全ログ削除"), 1200);
+  }, 1200);
 };

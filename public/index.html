@@ -111,12 +111,12 @@
 <!-- 💬 メインアプリ -->
 <div id="main-app">
   <div class="top-controls">
-    <!-- 🏠 Homeボタンでトップに戻る -->
+    <!-- 🏠 Home -->
     <button class="btn-blue" onclick="goHome()">🏠 Home</button>
 
-    <!-- 👤 ユーザー追加・削除 -->
-    <button class="btn-blue" onclick="emitAddUser(this)">＋追加</button>
-    <button class="btn-blue" onclick="emitRemoveUser(this)">－削除</button>
+    <!-- 👤 ユーザー管理 -->
+    <button class="btn-blue" onclick="emitAddUser(this)">ユーザー追加</button>
+    <button class="btn-blue" onclick="emitRemoveUser(this)">ユーザー削除</button>
 
     <!-- 翻訳モード -->
     <select id="mode-select">
@@ -130,10 +130,10 @@
       <option value="speed">速度重視</option>
     </select>
 
-    <!-- 🗑️ ログ削除（既存クラス継続） -->
-    <button class="btn-blue" id="btn-clear-logs" onclick="emitClearLogs(this)">🗑️ 全ログ削除</button>
+    <!-- 🗑️ 全ログ削除（翻訳ボタンと同系色に変更） -->
+    <button class="btn-translate" id="btn-clear-logs" onclick="emitClearLogs(this)">全ログ削除</button>
 
-    <!-- 🔄 ルーム切替 -->
+    <!-- ルーム切替 -->
     <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
       <option value="room1">Room 1</option>
       <option value="room2">Room 2</option>

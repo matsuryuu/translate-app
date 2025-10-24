@@ -277,3 +277,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 });
+
+// ===== ユーザー追加・削除機能（最大5ユーザー対応） =====
+function getUserCount() {
+  return document.querySelectorAll(".user-box").length;
+}
+
+window.emitAddUser = function () {
+  const count = getUserCount();
+  if (count >= 5) {
+    alert("これ以上追加できません（最大5ユーザー）");
+    return;
+  }
+  const newId = count + 1;
+  addUserBox(newId, `ユーザー${newId}`);
+  toast(`👤 ユーザー${newId} を追加しました`);
+};
+
+window.emitRemoveUser = function () {
+  const count = getUserCount();
+  if (count <= 1) {
+    alert("これ以上削除できません（最低1ユーザー）");
+    return;
+  }
+  const target = document.getElementById(`user-box-${count}`);
+  if (target) target.remove();
+  toast(`👋 ユーザー${count} を削除しました`);
+};
+

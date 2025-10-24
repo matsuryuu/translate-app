@@ -2,138 +2,238 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>リアルタイム翻訳くん 🌏</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>リアルタイム翻訳くん🌏</title>
   <style>
-    :root {
-      --blue-1:#eaf4fc; --blue-2:#d6ecfa; --blue-3:#c2e0f7; --blue-4:#a7d2f4;
-      --ink:#1f2a44; --red-soft:#f8bcbc;
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f9ff;
+      margin: 0;
+      padding: 0;
+      color: #333;
     }
-    body { margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
-    h1 { margin:20px 0; }
-
-    .share-wrap { margin:16px auto; max-width:920px; }
-    .share-bar { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
-    .share-bar button { padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
-    .share-bar button:hover { background:var(--blue-4); }
-
-    .share-panel { display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
-    .room-links { display:grid; gap:8px; line-height:1.8; }
-    .room-links a { color:#0b68b8; text-decoration:none; word-break:break-all; }
-    .room-links a:hover { text-decoration:underline; }
-
-    #qr-wrap { display:none; margin-top:12px; }
-    #qr-canvas { background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
-
-    #main-app { display:none; }
-    .top-controls { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
-    .btn-clear { background:pink; }
-    select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
-
-    .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
-    .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
-    .user-box h3 { margin:6px 0 10px; }
-
-    /* 🩵 コピーアイコン半透明重ね配置（角ギリギリ） */
-    .copy-btn {
-      position:absolute; top:6px; right:6px;
-      border:none; background:rgba(255,255,255,0.6);
-      cursor:pointer; font-size:18px; border-radius:8px;
-      transition:all .2s; padding:4px;
+    header {
+      background: #e6f0ff;
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-    .copy-btn:hover { background:rgba(255,255,255,0.9); }
-    .copy-btn.done { color:green; }
-    /* 🗑️ 入力欄クリアボタン（コピーと同じ見た目） */
-    .clear-btn {
-      position:absolute; top:6px; right:6px;
-      border:none; background:rgba(255,255,255,0.6);
-      cursor:pointer; font-size:18px; border-radius:8px;
-      transition:all .2s; padding:4px;
+    header button, header select {
+      padding: 6px 10px;
+      border: 1px solid #bcd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
     }
-    .clear-btn:hover { background:rgba(255,255,255,0.9); }
-
-    .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
-    .lang-controls label { font-weight:600; }
-    select { padding:8px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); }
-    .btn-translate { padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9; background:var(--red-soft); font-weight:600; cursor:pointer; }
-    .btn-translate:hover { background:#f6a8a8; }
-
-    .text { width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
-    .text.output { background:#f9f9ff; font-weight:600; position:relative; margin-top:6px; }
-
-    .log { margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; text-align:left; }
-    .log .input { color:#9ca3af; }
-    .log .output { color:#0b68b8; font-weight:700; }
-    .log .line { display:flex; align-items:flex-start; }
-    .log .mark { display:inline-block; width:1.6em; text-align:center; }
-
-    @media (max-width:768px) {
-      .user-container { flex-direction:column; align-items:center; }
-      .user-box { width:90%; margin-bottom:20px; }
+    .user-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+    }
+    .user-box {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      width: 320px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccd;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 14px;
+      resize: vertical;
+      margin-top: 4px;
+    }
+    textarea.output {
+      background: #f0f8ff;
+      padding-right: 28px;
+    }
+    .copy-btn, .clear-btn {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: rgba(255,255,255,0.6);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      transition: all .2s;
+      z-index: 2;
+    }
+    .copy-btn:hover, .clear-btn:hover {
+      background: rgba(255,255,255,0.9);
+    }
+    #log {
+      margin: 10px auto;
+      width: 90%;
+      max-width: 900px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 10px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 200px;
+    }
+    .log-input { color: #999; }
+    .log-output { color: #333; font-weight: 500; }
+    .share-wrap {
+      text-align: center;
+      margin-top: 12px;
+    }
+    .share-wrap button {
+      margin: 4px;
+      border-radius: 8px;
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #ccd;
+      cursor: pointer;
+    }
+    #share-panel {
+      display: none;
+      margin-top: 10px;
+      background: #f0f8ff;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    #qr-wrap {
+      display: none;
+      text-align: center;
+      margin-top: 10px;
+    }
+    #qr-canvas {
+      margin: auto;
+    }
+    @media (max-width: 768px) {
+      .user-container { flex-direction: column; align-items: center; }
+      .user-box { width: 90%; }
     }
   </style>
 </head>
+
 <body>
-  <h1>リアルタイム翻訳くん 🌏</h1>
+  <header>
+    <button id="backBtn">←戻る</button>
+    <button id="addUserBtn">＋ユーザー追加</button>
+    <button id="removeUserBtn">－ユーザー削除</button>
+    <select id="modeSelect">
+      <option value="意訳">意訳</option>
+      <option value="直訳">直訳</option>
+    </select>
+    <select id="modelSelect">
+      <option value="quality">精度重視</option>
+      <option value="speed">速度重視</option>
+    </select>
+    <button id="clearLogsBtn">全ログ削除</button>
+    <select id="roomSwitch">
+      <option value="room1">Room 1</option>
+      <option value="room2">Room 2</option>
+      <option value="room3">Room 3</option>
+    </select>
+  </header>
+
+  <div class="user-container" id="userContainer"></div>
+  <div id="log"></div>
 
   <div class="share-wrap">
-    <div class="share-bar">
-      <button onclick="copyMainLink()">📋 URLコピー</button>
-      <button onclick="shareLink()">📱 シェア</button>
-      <button onclick="toggleSharePanel()">📄 詳細</button>
-      <button onclick="toggleQRCode()">🧾 QR表示</button>
-    </div>
+    <button onclick="copyMainLink()">📋 URLコピー</button>
+    <button onclick="shareLink()">🔗 共有</button>
+    <button onclick="toggleSharePanel()">📄 詳細共有</button>
+    <button onclick="toggleQRCode()">🔳 QR表示</button>
 
-    <div id="share-panel" class="share-panel">
-      <div class="room-links">
-        <div><strong>各ルーム直リンク</strong></div>
-        <div id="room-links"></div>
-      </div>
-      <div class="room-links">
-        <a id="mailto-link" target="_blank">📧 メールで共有</a><br>
-        <a id="slack-link" target="_blank">💬 Slackに貼る</a>
-      </div>
+    <div id="share-panel">
+      <div id="room-links"></div>
+      <a id="mailto-link" href="#">📧 メール共有</a>　
+      <a id="slack-link" href="#">💬 Slack共有</a>
     </div>
 
     <div id="qr-wrap">
-      <canvas id="qr-canvas" width="220" height="220"></canvas>
+      <canvas id="qr-canvas"></canvas>
     </div>
   </div>
 
-  <div id="room-select">
-    <h2>チャットルームを選んで入室</h2>
-    <div class="rooms">
-      <button onclick="joinRoom('room1')">Room 1</button>
-      <button onclick="joinRoom('room2')">Room 2</button>
-      <button onclick="joinRoom('room3')">Room 3</button>
-    </div>
-  </div>
-
-  <div id="main-app">
-    <div class="top-controls">
-      <button onclick="leaveRoom()">← 戻る</button>
-      <button onclick="emitAddUser()">ユーザー追加</button>
-      <button onclick="emitRemoveUser()">ユーザー削除</button>
-      <select id="mode-select">
-        <option value="意訳">意訳（自然）</option>
-        <option value="直訳">直訳（忠実）</option>
-      </select>
-      <select id="model-select">
-        <option value="quality">精度重視</option>
-        <option value="speed">速度重視</option>
-      </select>
-      <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
-      <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
-        <option value="room1">Room 1</option>
-        <option value="room2">Room 2</option>
-        <option value="room3">Room 3</option>
-      </select>
-    </div>
-    <div class="user-container" id="users"></div>
-  </div>
-
+  <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- QRコード生成 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+  <!-- 共有ボタン用グローバル関数 -->
+  <script>
+    function originUrl(){ return window.location.origin; }
+
+    function copyMainLink(){
+      navigator.clipboard.writeText(originUrl()).then(()=>alert("URLをコピーしました📋"));
+    }
+
+    function shareLink(){
+      const url = originUrl();
+      if(navigator.share){
+        navigator.share({
+          title:"リアルタイム翻訳くん🌏",
+          text:"この翻訳ルームに入ってね！",
+          url:url
+        });
+      } else { copyMainLink(); }
+    }
+
+    function toggleSharePanel(){
+      const p = document.getElementById("share-panel");
+      if(!p) return;
+      p.style.display = p.style.display === "block" ? "none" : "block";
+      if(p.style.display === "block"){ updateShareLinks(); buildRoomLinks(); }
+    }
+
+    function updateShareLinks(){
+      const url = originUrl();
+      const mail = document.getElementById("mailto-link");
+      const slack = document.getElementById("slack-link");
+      if(mail) mail.href = `mailto:?subject=翻訳ルームURL&body=${encodeURIComponent(url)}`;
+      if(slack) slack.href = `https://slack.com/app_redirect?message=${encodeURIComponent(url)}`;
+    }
+
+    function buildRoomLinks(){
+      const root = originUrl();
+      const linksDiv = document.getElementById("room-links");
+      if(!linksDiv) return;
+      linksDiv.innerHTML = "";
+      ["room1","room2","room3"].forEach((r)=>{
+        const a = document.createElement("a");
+        a.href = `${root}/?room=${r}`;
+        a.textContent = `${r}: ${root}/?room=${r}`;
+        a.target = "_blank";
+        linksDiv.appendChild(a);
+        linksDiv.appendChild(document.createElement("br"));
+      });
+    }
+
+    function toggleQRCode(){
+      const wrap = document.getElementById("qr-wrap");
+      if(!wrap) return;
+      if(wrap.style.display === "block"){ wrap.style.display = "none"; return; }
+      const canvas = document.getElementById("qr-canvas");
+      new QRious({ element: canvas, value: originUrl(), size: 220, level: "H" });
+      wrap.style.display = "block";
+    }
+  </script>
+
+  <!-- クライアントメイン -->
   <script src="client.js"></script>
 </body>
 </html>

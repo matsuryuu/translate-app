@@ -9,6 +9,27 @@
       --blue-1:#eaf4fc; --blue-2:#d6ecfa; --blue-3:#c2e0f7; --blue-4:#a7d2f4;
       --ink:#1f2a44; --red-soft:#f8bcbc;
     }
+
+ .btn-blue {
+    background: #0b68b8;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-blue:hover {
+    background: #0d7edb;
+  }
+  .btn-flash {
+    box-shadow: 0 0 0 3px rgba(11, 104, 184, 0.3) inset;
+  }
+  .btn-busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
     body { margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
     h1 { margin:20px 0; }
 
@@ -87,30 +108,42 @@
     </div>
   </div>
 
-  <!-- 💬 メインアプリ -->
-  <div id="main-app">
-    <div class="top-controls">
-      <button onclick="leaveRoom()">← 戻る</button>
-      <button onclick="emitAddUser()">ユーザー追加</button>
-      <button onclick="emitRemoveUser()">ユーザー削除</button>
-      <select id="mode-select">
-        <option value="意訳">意訳（自然）</option>
-        <option value="直訳">直訳（忠実）</option>
-      </select>
-      <select id="model-select">
-        <option value="quality">精度重視</option>
-        <option value="speed">速度重視</option>
-      </select>
-      <!-- ✨ログ削除に視覚アクションを追加 -->
-      <button class="btn-clear" id="btn-clear-logs" onclick="clearAllLogs()">全ログ削除</button>
-      <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
-        <option value="room1">Room 1</option>
-        <option value="room2">Room 2</option>
-        <option value="room3">Room 3</option>
-      </select>
-    </div>
-    <div class="user-container" id="users"></div>
+<!-- 💬 メインアプリ -->
+<div id="main-app">
+  <div class="top-controls">
+    <!-- 🏠 Homeボタンでトップに戻る -->
+    <button class="btn-blue" onclick="goHome()">🏠 Home</button>
+
+    <!-- 👤 ユーザー追加・削除 -->
+    <button class="btn-blue" onclick="emitAddUser(this)">＋追加</button>
+    <button class="btn-blue" onclick="emitRemoveUser(this)">－削除</button>
+
+    <!-- 翻訳モード -->
+    <select id="mode-select">
+      <option value="free">意訳（自然）</option>
+      <option value="formal">直訳（忠実）</option>
+    </select>
+
+    <!-- モデル選択 -->
+    <select id="model-select">
+      <option value="quality">精度重視</option>
+      <option value="speed">速度重視</option>
+    </select>
+
+    <!-- 🗑️ ログ削除（既存クラス継続） -->
+    <button class="btn-blue" id="btn-clear-logs" onclick="emitClearLogs(this)">🗑️ 全ログ削除</button>
+
+    <!-- 🔄 ルーム切替 -->
+    <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
+      <option value="room1">Room 1</option>
+      <option value="room2">Room 2</option>
+      <option value="room3">Room 3</option>
+    </select>
   </div>
+
+  <div class="user-container" id="users"></div>
+</div>
+
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>

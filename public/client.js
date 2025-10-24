@@ -278,12 +278,26 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 });
 
-// ===== ユーザー追加・削除機能（最大5ユーザー対応） =====
+// ===== 🏠 Homeボタン機能 =====
+function goHome() {
+  window.location.href = "/";
+}
+
+// ===== ユーザー追加・削除機能（最大5ユーザー対応＋青ボタン演出） =====
 function getUserCount() {
   return document.querySelectorAll(".user-box").length;
 }
 
-window.emitAddUser = function () {
+// 💠 ボタン点滅フィードバック
+function flashButton(btn) {
+  if (!btn) return;
+  btn.classList.add("btn-flash");
+  setTimeout(() => btn.classList.remove("btn-flash"), 400);
+}
+
+// ➕ ユーザー追加
+window.emitAddUser = function (btn) {
+  flashButton(btn);
   const count = getUserCount();
   if (count >= 5) {
     alert("これ以上追加できません（最大5ユーザー）");
@@ -294,7 +308,9 @@ window.emitAddUser = function () {
   toast(`👤 ユーザー${newId} を追加しました`);
 };
 
-window.emitRemoveUser = function () {
+// ➖ ユーザー削除
+window.emitRemoveUser = function (btn) {
+  flashButton(btn);
   const count = getUserCount();
   if (count <= 1) {
     alert("これ以上削除できません（最低1ユーザー）");
@@ -304,4 +320,3 @@ window.emitRemoveUser = function () {
   if (target) target.remove();
   toast(`👋 ユーザー${count} を削除しました`);
 };
-

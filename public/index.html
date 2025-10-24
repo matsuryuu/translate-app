@@ -1,96 +1,139 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>リアルタイム翻訳くん🌏</title>
+  <meta charset="UTF-8" />
+  <title>リアルタイム翻訳くん 🌏</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root { --blue:#0b68b8; --gray:#9ca3af; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; background:#f7f7f8; color:#111; }
-    header, .toolbar { display:flex; gap:.5rem; align-items:center; }
-    header { padding:12px 16px; background:#fff; border-bottom:1px solid #eee; position:sticky; top:0; z-index:10; }
-    h1 { margin:0; font-size:1.1rem; }
-    .container { max-width:1100px; margin:0 auto; padding:16px; }
-    .panel { background:#fff; border:1px solid #eee; border-radius:12px; padding:12px; }
-    .row { display:grid; gap:12px; grid-template-columns: 1fr; }
-    @media (min-width: 980px) { .row { grid-template-columns: repeat(3, 1fr); } }
+    :root {
+      --blue-1:#eaf4fc; --blue-2:#d6ecfa; --blue-3:#c2e0f7; --blue-4:#a7d2f4;
+      --ink:#1f2a44; --red-soft:#f8bcbc;
+    }
+    body { margin:0; padding:0; font-family:system-ui,sans-serif; background:var(--blue-1); color:var(--ink); text-align:center; }
+    h1 { margin:20px 0; }
 
-    .userbox { position:relative; display:flex; flex-direction:column; gap:8px; }
-    .line { display:flex; gap:8px; align-items:center; }
-    select, button { padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; }
-    button.primary { background:#0b68b8; color:#fff; border-color:#0b68b8; }
-    textarea { width:100%; min-height:110px; padding:10px; border:1px solid #ddd; border-radius:12px; outline:none; resize:vertical; }
-    .out { min-height:110px; border:1px solid #ddd; border-radius:12px; padding:10px; background:#fafafa; }
-    .badge { font-size:.85rem; color:#555; }
-    .ghost { opacity:.5; pointer-events:none; }
-    .mini { font-size:.9rem; }
-    .icon-btn { position:absolute; top:6px; right:6px; border:none; background:rgba(255,255,255,.8); border:1px solid #ddd; border-radius:10px; padding:4px 8px; cursor:pointer; }
-    .icon-btn:active { transform: translateY(1px); }
-    .out { position:relative; padding-right:28px; }
-    .log { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#fff; border:1px solid #eee; border-radius:12px; padding:10px; max-height:180px; overflow:auto; }
-    .log .in  { color: var(--gray); }
-    .log .out { color: var(--blue); }
-    .room-stats { font-size:.9rem; color:#666; }
-    .sharebar { display:flex; gap:8px; flex-wrap:wrap; }
-    .qr-wrap { display:none; margin-top:8px; }
-    .hidden { display:none; }
+    .share-wrap { margin:16px auto; max-width:920px; }
+    .share-bar { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+    .share-bar button { padding:8px 12px; border-radius:10px; border:1px solid #b8c7d9; background:var(--blue-3); cursor:pointer; font-size:14px; font-weight:600; }
+    .share-bar button:hover { background:var(--blue-4); }
+
+    .share-panel { display:none; margin:10px auto 0; padding:12px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); max-width:920px; }
+    .room-links { display:grid; gap:8px; line-height:1.8; }
+    .room-links a { color:#0b68b8; text-decoration:none; word-break:break-all; }
+    .room-links a:hover { text-decoration:underline; }
+
+    #qr-wrap { display:none; margin-top:12px; }
+    #qr-canvas { background:#fff; padding:10px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+
+    #main-app { display:none; }
+    .top-controls { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px; padding:10px; }
+    .btn-clear { background:pink; }
+    select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
+
+    .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
+    .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
+    .user-box h3 { margin:6px 0 10px; }
+
+    /* 🩵 コピーアイコン半透明重ね配置（角ギリギリ） */
+    .copy-btn {
+      position:absolute; top:6px; right:6px;
+      border:none; background:rgba(255,255,255,0.6);
+      cursor:pointer; font-size:18px; border-radius:8px;
+      transition:all .2s; padding:4px;
+    }
+    .copy-btn:hover { background:rgba(255,255,255,0.9); }
+    .copy-btn.done { color:green; }
+    /* 🗑️ 入力欄クリアボタン（コピーと同じ見た目） */
+    .clear-btn {
+      position:absolute; top:6px; right:6px;
+      border:none; background:rgba(255,255,255,0.6);
+      cursor:pointer; font-size:18px; border-radius:8px;
+      transition:all .2s; padding:4px;
+    }
+    .clear-btn:hover { background:rgba(255,255,255,0.9); }
+
+    .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+    .lang-controls label { font-weight:600; }
+    select { padding:8px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); }
+    .btn-translate { padding:8px 12px; border-radius:8px; border:1px solid #b8c7d9; background:var(--red-soft); font-weight:600; cursor:pointer; }
+    .btn-translate:hover { background:#f6a8a8; }
+
+    .text { width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
+    .text.output { background:#f9f9ff; font-weight:600; position:relative; margin-top:6px; }
+
+    .log { margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; text-align:left; }
+    .log .input { color:#9ca3af; }
+    .log .output { color:#0b68b8; font-weight:700; }
+    .log .line { display:flex; align-items:flex-start; }
+    .log .mark { display:inline-block; width:1.6em; text-align:center; }
+
+    @media (max-width:768px) {
+      .user-container { flex-direction:column; align-items:center; }
+      .user-box { width:90%; margin-bottom:20px; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>リアルタイム翻訳くん🌏</h1>
-    <div class="room-stats" id="roomStats"></div>
-  </header>
+  <h1>リアルタイム翻訳くん 🌏</h1>
 
-  <div class="container">
-    <!-- ルーム切替 / 共有 -->
-    <div class="panel" style="margin-bottom:12px;">
-      <div class="toolbar">
-        <button id="backBtn">← 戻る</button>
-        <button id="addUserBtn">＋ ユーザー追加</button>
-        <button id="delUserBtn">－ ユーザー削除</button>
-        <select id="modeSel">
-          <option value="free">翻訳モード: 意訳</option>
-          <option value="formal">翻訳モード: 直訳</option>
-        </select>
-        <select id="modelSel">
-          <option value="quality">モデル: 精度（gpt-4o）</option>
-          <option value="speed">モデル: 速度（gpt-4o-mini）</option>
-        </select>
-        <button id="clearLogsBtn">🗑️ 全ログ削除</button>
-        <select id="roomSel">
-          <option value="room1">room1</option>
-          <option value="room2">room2</option>
-          <option value="room3">room3</option>
-        </select>
-      </div>
+  <div class="share-wrap">
+    <div class="share-bar">
+      <button onclick="copyMainLink()">📋 URLコピー</button>
+      <button onclick="shareLink()">📱 シェア</button>
+      <button onclick="toggleSharePanel()">📄 詳細</button>
+      <button onclick="toggleQRCode()">🧾 QR表示</button>
+    </div>
 
-      <div class="sharebar" style="margin-top:8px;">
-        <button id="copyUrlBtn">📋 URLコピー</button>
-        <button id="shareBtn">📱 シェア</button>
-        <button id="detailBtn">📄 詳細</button>
-        <button id="qrBtn">🧾 QR表示</button>
+    <div id="share-panel" class="share-panel">
+      <div class="room-links">
+        <div><strong>各ルーム直リンク</strong></div>
+        <div id="room-links"></div>
       </div>
-      <div class="qr-wrap" id="qrWrap">
-        <canvas id="qrCanvas" width="160" height="160"></canvas>
+      <div class="room-links">
+        <a id="mailto-link" target="_blank">📧 メールで共有</a><br>
+        <a id="slack-link" target="_blank">💬 Slackに貼る</a>
       </div>
     </div>
 
-    <!-- メイン3人ボックス -->
-    <div class="row" id="usersRow">
-      <!-- JSで3枠生成 -->
-    </div>
-
-    <!-- 詳細パネル -->
-    <div id="detailPanel" class="panel hidden">
-      <div class="mini">
-        <div>現在URL：<span id="curUrl"></span></div>
-        <div id="roomLinks" style="margin-top:6px;"></div>
-      </div>
+    <div id="qr-wrap">
+      <canvas id="qr-canvas" width="220" height="220"></canvas>
     </div>
   </div>
 
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <div id="room-select">
+    <h2>チャットルームを選んで入室</h2>
+    <div class="rooms">
+      <button onclick="joinRoom('room1')">Room 1</button>
+      <button onclick="joinRoom('room2')">Room 2</button>
+      <button onclick="joinRoom('room3')">Room 3</button>
+    </div>
+  </div>
+
+  <div id="main-app">
+    <div class="top-controls">
+      <button onclick="leaveRoom()">← 戻る</button>
+      <button onclick="emitAddUser()">ユーザー追加</button>
+      <button onclick="emitRemoveUser()">ユーザー削除</button>
+      <select id="mode-select">
+        <option value="意訳">意訳（自然）</option>
+        <option value="直訳">直訳（忠実）</option>
+      </select>
+      <select id="model-select">
+        <option value="quality">精度重視</option>
+        <option value="speed">速度重視</option>
+      </select>
+      <button class="btn-clear" onclick="clearAllLogs()">全ログ削除</button>
+      <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
+        <option value="room1">Room 1</option>
+        <option value="room2">Room 2</option>
+        <option value="room3">Room 3</option>
+      </select>
+    </div>
+    <div class="user-container" id="users"></div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="client.js"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@ const socket = io("https://translate-app-backend.onrender.com", {
 });
 let currentRoom = null;
 
-// ===== デバウンス =====
+// ===== ユーティリティ =====
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -22,6 +22,119 @@ function toast(msg) {
   setTimeout(() => t.remove(), 1600);
 }
 
+// 現在URL（クエリ含む）
+function originUrl() {
+  return window.location.href;
+}
+
+// ===== 共有系：URLコピー / シェア / 詳細パネル / QR =====
+function setBusyFlash(btn, doneText, duration = 1500, originalText) {
+  if (!btn) return;
+  const prev = originalText ?? btn.textContent;
+  btn.textContent = doneText;
+  btn.disabled = true;
+  btn.style.opacity = "0.7";
+  setTimeout(() => {
+    btn.textContent = prev;
+    btn.disabled = false;
+    btn.style.opacity = "1";
+  }, duration);
+}
+
+window.copyMainLink = async function copyMainLink(btn) {
+  const url = originUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    setBusyFlash(btn, "✅ コピー", 1500);
+    toast("✅ URLをコピーしたよ");
+  } catch {
+    // フォールバック
+    const ta = document.createElement("textarea");
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    setBusyFlash(btn, "✅ コピー", 1500);
+    toast("✅ URLをコピーしたよ");
+  }
+};
+
+window.shareLink = async function shareLink(btn) {
+  const url = originUrl();
+  const title = document.title || "リアルタイム翻訳くん";
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      setBusyFlash(btn, "📨 実行", 1200);
+      toast("📨 共有を実行したよ");
+      return;
+    } catch {
+      // cancel等は無視してコピーにフォールバック
+    }
+  }
+  // フォールバック: コピー
+  await window.copyMainLink(btn);
+};
+
+function buildRoomLinks() {
+  const base = window.location.origin + window.location.pathname;
+  const rooms = ["room1", "room2", "room3"];
+  const wrap = document.getElementById("room-links");
+  if (!wrap) return;
+  wrap.innerHTML = rooms
+    .map((r) => `<a href="${base}?room=${r}" target="_blank">${base}?room=${r}</a>`)
+    .join("<br>");
+  // ついでにメール/Slackのリンクも更新
+  const mailto = document.getElementById("mailto-link");
+  const slack = document.getElementById("slack-link");
+  const subj = encodeURIComponent("リアルタイム翻訳くん 共有リンク");
+  const body = encodeURIComponent(rooms.map((r) => `${r}: ${base}?room=${r}`).join("\n"));
+  if (mailto) mailto.href = `mailto:?subject=${subj}&body=${body}`;
+  if (slack) slack.href = `https://slack.com/app_redirect?channel=&team=&message=${encodeURIComponent(body)}`;
+}
+
+let qrInstance = null;
+window.toggleSharePanel = function toggleSharePanel(btn) {
+  const panel = document.getElementById("share-panel");
+  if (!panel) return;
+  const isHidden = panel.style.display === "none" || panel.style.display === "";
+  panel.style.display = isHidden ? "block" : "none";
+  if (isHidden) {
+    buildRoomLinks();
+    setBusyFlash(btn, "📄 開いたよ", 900);
+  } else {
+    setBusyFlash(btn, "📄 閉じたよ", 900);
+  }
+};
+
+window.toggleQRCode = function toggleQRCode(btn) {
+  const wrap = document.getElementById("qr-wrap");
+  const canvas = document.getElementById("qr-canvas");
+  if (!wrap || !canvas) return;
+  const isHidden = wrap.style.display === "none" || wrap.style.display === "";
+  if (isHidden) {
+    wrap.style.display = "block";
+    // QR生成（QRious）
+    try {
+      if (!qrInstance) {
+        // eslint-disable-next-line no-undef
+        qrInstance = new QRious({ element: canvas, value: originUrl(), size: 220 });
+      } else {
+        qrInstance.set({ value: originUrl() });
+      }
+      setBusyFlash(btn, "🧾 表示中", 900);
+      toast("🧾 QRを表示したよ");
+    } catch (e) {
+      console.error(e);
+      toast("QRの生成に失敗したよ");
+    }
+  } else {
+    wrap.style.display = "none";
+    setBusyFlash(btn, "🧾 閉じたよ", 900);
+  }
+};
+
 // ===== ルーム関連 =====
 function joinRoom(room) {
   currentRoom = room;
@@ -30,6 +143,7 @@ function joinRoom(room) {
   document.getElementById("main-app").style.display = "block";
   document.getElementById("room-switch").value = room;
 }
+window.joinRoom = joinRoom;
 
 function leaveRoom() {
   if (currentRoom) socket.emit("leave room", { room: currentRoom });
@@ -38,6 +152,7 @@ function leaveRoom() {
   document.getElementById("room-select").style.display = "block";
   document.getElementById("users").innerHTML = "";
 }
+window.leaveRoom = leaveRoom;
 
 function switchRoom(val) {
   if (val === currentRoom) return;
@@ -45,6 +160,7 @@ function switchRoom(val) {
   socket.emit("join room", { room: val });
   currentRoom = val;
 }
+window.switchRoom = switchRoom;
 
 // ===== UI生成 =====
 function addUserBox(uid, name) {
@@ -84,7 +200,7 @@ function addUserBox(uid, name) {
   `;
   usersDiv.appendChild(box);
 
-  // デフォルト設定
+  // デフォルト言語
   if (uid === 1) setLang(uid, "ja", "zh");
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
@@ -109,12 +225,16 @@ function addUserBox(uid, name) {
 
   // コピー
   const copyBtn = document.getElementById(`copy-${uid}`);
-  copyBtn.addEventListener("click", () => {
+  copyBtn.addEventListener("click", async () => {
     const out = document.getElementById(`output-${uid}`);
-    navigator.clipboard.writeText(out.value).then(() => {
+    try {
+      await navigator.clipboard.writeText(out.value);
       copyBtn.textContent = "✅";
       setTimeout(() => (copyBtn.textContent = "📋"), 2000);
-    });
+      toast("✅ コピーしたよ");
+    } catch {
+      toast("コピーできなかったよ");
+    }
   });
 
   // クリア
@@ -133,6 +253,7 @@ function setLang(uid, i, o) {
 function clearAllLogs() {
   socket.emit("clear logs", { room: currentRoom });
 }
+window.clearAllLogs = clearAllLogs;
 
 // ===== Socketイベント =====
 socket.on("init users", (u) => {
@@ -168,6 +289,8 @@ socket.on("existing-logs", (logs) => {
 
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
+  // 仕様：編集中は上書きしない（activeElement判定）
+  if (document.activeElement === el) return;
   if (el && el.value !== text) el.value = text;
 });
 

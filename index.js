@@ -132,7 +132,7 @@ io.on("connection", (socket) => {
         acc += delta;
         io.to(room).emit("stream", { userId, text: acc });
       }
-
+      
       io.to(room).emit("translated", { userId, text: acc, inputText: text });
       const r = rooms[room];
       if (!r) return;
@@ -141,6 +141,7 @@ io.on("connection", (socket) => {
     } catch (e) {
       console.error("翻訳エラー:", e);
       io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
+      io.to(room).emit("stream", { userId, text: "翻訳中..." });
     }
   });
 

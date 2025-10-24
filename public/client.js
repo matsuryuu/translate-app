@@ -1,11 +1,13 @@
 console.log("✅ client.js loaded");
+
+// ===== Socket.IO 初期化 =====
 const socket = io("https://translate-app-backend.onrender.com", {
   withCredentials: true,
   transports: ["websocket"],
 });
 let currentRoom = null;
 
-// ===== ユーティリティ =====
+// ===== debounceユーティリティ =====
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -14,6 +16,7 @@ function debounce(fn, delay) {
   };
 }
 
+// ===== トースト通知 =====
 function toast(msg) {
   const t = document.createElement("div");
   t.innerText = msg;
@@ -21,7 +24,6 @@ function toast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 1600);
 }
-
 
 // ===== ルーム関連 =====
 function joinRoom(room) {
@@ -88,7 +90,7 @@ function addUserBox(uid, name) {
   `;
   usersDiv.appendChild(box);
 
-  // デフォルト言語
+  // デフォルト設定
   if (uid === 1) setLang(uid, "ja", "zh");
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
@@ -99,7 +101,7 @@ function addUserBox(uid, name) {
     debounce((e) => socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value }), 200)
   );
 
-  // 翻訳
+  // 翻訳ボタン
   document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
     const text = inputEl.value;
     const inputLang = document.getElementById(`input-lang-${uid}`).value;
@@ -108,6 +110,8 @@ function addUserBox(uid, name) {
     const model = document.getElementById("model-select").value;
     const out = document.getElementById(`output-${uid}`);
     out.value = "翻訳中…";
+    // 🔸全端末へ翻訳中…を通知
+    socket.emit("input", { room: currentRoom, userId: uid, text }); 
     socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang, mode, model });
   });
 
@@ -177,8 +181,7 @@ socket.on("existing-logs", (logs) => {
 
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
-  // 仕様：編集中は上書きしない（activeElement判定）
-  if (document.activeElement === el) return;
+  if (document.activeElement === el) return; // 自分で編集中なら上書きしない
   if (el && el.value !== text) el.value = text;
 });
 
@@ -201,4 +204,64 @@ socket.on("translated", ({ userId, text, inputText }) => {
 
 socket.on("logs cleared", () => {
   document.querySelectorAll(".log").forEach((l) => (l.innerHTML = ""));
+});
+
+// ===== 共有ボタン（通信と独立） =====
+document.addEventListener("DOMContentLoaded", () => {
+  function originUrl() {
+    return window.location.href;
+  }
+
+  window.copyMainLink = async function(btn) {
+    const url = originUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      btn.textContent = "✅ コピー";
+      setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      btn.textContent = "✅ コピー";
+      setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
+    }
+  };
+
+  window.shareLink = async function(btn) {
+    const url = originUrl();
+    const title = document.title || "リアルタイム翻訳くん";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+        btn.textContent = "📨 実行";
+        setTimeout(() => (btn.textContent = "📱 シェア"), 1500);
+        return;
+      } catch {}
+    }
+    await window.copyMainLink(btn);
+  };
+
+  window.toggleSharePanel = function(btn) {
+    const panel = document.getElementById("share-panel");
+    const show = panel.style.display === "none" || !panel.style.display;
+    panel.style.display = show ? "block" : "none";
+    btn.textContent = show ? "📄 閉じる" : "📄 詳細";
+  };
+
+  window.toggleQRCode = function(btn) {
+    const wrap = document.getElementById("qr-wrap");
+    const canvas = document.getElementById("qr-canvas");
+    const show = wrap.style.display === "none" || !wrap.style.display;
+    wrap.style.display = show ? "block" : "none";
+    if (show) {
+      // eslint-disable-next-line no-undef
+      new QRious({ element: canvas, value: originUrl(), size: 220 });
+      btn.textContent = "🧾 閉じる";
+    } else {
+      btn.textContent = "🧾 QR表示";
+    }
+  };
 });

@@ -152,8 +152,19 @@
 .fs-btn { right:82px; }
 .speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
 
-.log { max-height:220px; overflow-y:auto; word-break:break-word; overflow-wrap:anywhere; }
-.log .line { user-select:text; cursor:pointer; }
+.log {
+  max-height: 220px;
+  overflow-y: auto;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+.log .line {
+  user-select: text;
+  cursor: text;
+}
 
 @media (max-width:768px){
   .paste-btn, .speak-btn, .fs-btn {
@@ -200,11 +211,6 @@
     <button class="btn-blue" onclick="emitRemoveUser(this)">ユーザー削除</button>
 
     <!-- 翻訳モード -->
-    <select id="mode-select">
-      <option value="free">意訳（自然）</option>
-      <option value="formal">直訳（忠実）</option>
-    </select>
-
     <select id="mode-select">
       <option value="free">意訳（自然）</option>
       <option value="formal">直訳（忠実）</option>

@@ -79,7 +79,7 @@ function addUserBox(uid, name) {
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
 
-    <div style="position:relative;">
+<div style="position:relative;">
       <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
       <button class="paste-btn" id="paste-${uid}" title="貼り付け">📋</button>
       <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
@@ -92,14 +92,6 @@ function addUserBox(uid, name) {
       <button class="copy-btn"  id="copy-${uid}"  title="コピー">📋</button>
     </div>
 
-    <div style="position:relative;">
-      <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
-      <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
-    </div>
-    <div style="position:relative;">
-      <textarea id="output-${uid}" class="text output" readonly></textarea>
-      <button class="copy-btn" id="copy-${uid}" title="コピー">📋</button>
-    </div>
     <div class="log" id="log-${uid}"></div>
   `;
   usersDiv.appendChild(box);

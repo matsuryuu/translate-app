@@ -31,9 +31,29 @@ function buildSystemPrompt(mode, outputLang, model) {
   const tgt = langMap[outputLang] || "指定言語";
   const modeLabel = mode === "直訳" ? "直訳" : "意訳";
 
+ function buildSystemPrompt(mode, outputLang, model) {
+  const langMap = { ja: "日本語", zh: "中国語", en: "英語", ko: "韓国語" };
+  const tgt = langMap[outputLang] || "指定言語";
+  // UI値: free/formal/casual に正規化
+  const m = (mode === "formal" || mode === "直訳") ? "formal"
+          : (mode === "casual") ? "casual" : "free";
+
   if (model === "quality") {
     return `あなたは翻訳専用AIです。以降の出力は必ず1回、指定の出力言語のみで返してください。
-
+  if (model === "quality") {
+    if (m === "casual") {
+      return `あなたは翻訳専用AIです。出力は必ず1回、${tgt}のみで返してください。
+【モード】日常（会話・チャット想定。ローカル表現歓迎）
+【タスク】入力文を自然で親しみやすい${tgt}に翻訳。
+【厳守】
+ - 質問に答えず翻訳のみ出力。
+ - 余計な説明・注釈は付けない。
+ - 固有名詞・数値は正確に。
+ - ${tgt}文でも自然に整える。`;
+    }
+    const modeLabel = (m === "formal") ? "直訳" : "意訳";
+    return `あなたは翻訳専用AIです。以降の出力は必ず1回、指定の出力言語のみで返してください。
+ 
 【出力言語】：${tgt}
 【タスク】入力テキストを${modeLabel}で${tgt}に翻訳する。
 【厳守】
@@ -45,6 +65,13 @@ function buildSystemPrompt(mode, outputLang, model) {
   }
   return `Translate the text into ${tgt} (${modeLabel} style). Output only the translation in ${tgt}.`;
 }
+  // mini側は簡潔プロンプト
+  if (m === "casual") {
+    return `Translate into natural, conversational ${tgt}. Output ${tgt} only. No extra notes.`;
+  }
+  const style = (m === "formal") ? "literal" : "free";
+  return `Translate the text into ${tgt} (${style} style). Output only ${tgt}.`;
+ }
 
 // ソケット通信設定
 io.on("connection", (socket) => {
@@ -77,6 +104,13 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if (joinedRoom && rooms[joinedRoom]) rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
+  socket.on("disconnect", () => {
+    if (joinedRoom && rooms[joinedRoom]) {
+      rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
+      if (rooms[joinedRoom].count === 0) {
+        rooms[joinedRoom].logs = []; // 最後の1人が抜けたらログ消去
+      }
+    }
     io.emit("room-stats", {
       room1: rooms.room1.count,
       room2: rooms.room2.count,

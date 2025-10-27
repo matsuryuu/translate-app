@@ -78,6 +78,20 @@ function addUserBox(uid, name) {
       </select>
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
+
+    <div style="position:relative;">
+      <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
+      <button class="paste-btn" id="paste-${uid}" title="貼り付け">📋</button>
+      <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
+    </div>
+
+    <div style="position:relative;">
+      <textarea id="output-${uid}" class="text output" readonly></textarea>
+      <button class="fs-btn"    id="fs-${uid}"    title="全画面(スマホ)">📱</button>
+      <button class="speak-btn" id="speak-${uid}" title="読み上げ">🔊</button>
+      <button class="copy-btn"  id="copy-${uid}"  title="コピー">📋</button>
+    </div>
+
     <div style="position:relative;">
       <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
       <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
@@ -317,3 +331,82 @@ window.emitClearLogs = function (btn) {
     setTimeout(() => (btn.textContent = "全ログ削除"), 1200);
   }, 1200);
 };
+
+  // 貼り付け
+  const pasteBtn = document.getElementById(`paste-${uid}`);
+  pasteBtn.addEventListener("click", async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      const el = document.getElementById(`input-${uid}`);
+      const start = el.selectionStart ?? el.value.length;
+      const end   = el.selectionEnd   ?? el.value.length;
+      el.value = el.value.slice(0, start) + clip + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = start + clip.length;
+      socket.emit("input", { room: currentRoom, userId: uid, text: el.value });
+      toast("✅ 貼り付けたよ");
+    } catch {
+      toast("貼り付けできなかったよ");
+    }
+  });
+
+  // 読み上げ
+  const speakBtn = document.getElementById(`speak-${uid}`);
+  speakBtn.addEventListener("click", () => {
+    const out = document.getElementById(`output-${uid}`);
+    const langSel = document.getElementById(`output-lang-${uid}`).value;
+    const langMap = { ja:"ja-JP", zh:"zh-TW", en:"en-US", ko:"ko-KR" };
+    const u = new SpeechSynthesisUtterance(out.value || "");
+    u.lang   = langMap[langSel] || "ja-JP";
+    u.rate   = 1.25; // 速めで滑らか
+    u.pitch  = 1.0;
+    u.volume = 1.0;
+    speechSynthesis.cancel();
+    // 事前ロード済みのvoiceを使う（初回遅延対策）
+    const voices = window.availableVoices || speechSynthesis.getVoices();
+    const v = voices.find(v => v.lang === u.lang) || voices.find(v => v.lang.startsWith(u.lang.split("-")[0])) || voices[0];
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+    toast("🔊 再生するね");
+  });
+
+
+  // 全画面（スマホのみ）
+  const fsBtn = document.getElementById(`fs-${uid}`);
+  const isMobile = window.innerWidth < 768;
+  if (!isMobile) fsBtn.style.display = "none";
+  fsBtn.addEventListener("click", async () => {
+    if (!document.fullscreenElement) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      fsBtn.textContent = "❌";
+    } else {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      fsBtn.textContent = "📱";
+    }
+  });
+
+// ログ行をタップで全文選択
+document.addEventListener("click", (e) => {
+  const line = e.target.closest(".log .line");
+  if (!line) return;
+  const range = document.createRange();
+  range.selectNodeContents(line);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+});
+
+// タブ復帰で自動再接続
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && socket.disconnected) {
+    socket.connect();
+  }
+});
+
+// TTS voices 事前ロード（初回の再生遅延を回避）
+if ("speechSynthesis" in window) {
+  speechSynthesis.onvoiceschanged = () => {
+    window.availableVoices = speechSynthesis.getVoices();
+  };
+}
+

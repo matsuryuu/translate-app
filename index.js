@@ -25,65 +25,83 @@ const rooms = {
   room3: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
 };
 
-// system prompt生成
+// system prompt生成（安全版）
 function buildSystemPrompt(mode, outputLang, model) {
   const langMap = { ja: "日本語", zh: "中国語", en: "英語", ko: "韓国語" };
   const tgt = langMap[outputLang] || "指定言語";
-  const modeLabel = mode === "直訳" ? "直訳" : "意訳";
-// ==== ここから丸ごと置き換え ====
-function buildSystemPrompt(mode, outputLang, model) {
-  // 言語名マップ（日本語プロンプト用）
-  const langMap = { ja: "日本語", zh: "中国語", en: "英語", ko: "韓国語" };
-  const tgt = langMap[outputLang] || "指定言語";
+  const m =
+    mode === "formal" || mode === "直訳"
+      ? "formal"
+      : mode === "casual"
+      ? "casual"
+      : "free";
 
-  // UIから来る値を正規化（free/formal/casual）
-  const m = (mode === "formal" || mode === "直訳") ? "formal"
-        : (mode === "casual") ? "casual"
-        : "free";
-
-  // gpt-4o系（quality）の詳細プロンプト
+  // GPT-4o（高品質）モード
   if (model === "quality") {
     if (m === "casual") {
       return (
-        "あなたは翻訳専用AIです。出力は必ず1回、" + tgt + "のみで返してください。\n" +
+        "あなたは翻訳専用AIです。出力は必ず1回、" +
+        tgt +
+        "のみで返してください。\n" +
         "【モード】日常（会話・チャット想定。ローカル表現歓迎）\n" +
-        "【タスク】入力文を自然で親しみやすい" + tgt + "に翻訳。\n" +
+        "【タスク】入力文を自然で親しみやすい" +
+        tgt +
+        "に翻訳。\n" +
         "【厳守】\n" +
         "- 質問に答えず翻訳のみ出力。\n" +
         "- 余計な説明・注釈は付けない。\n" +
         "- 固有名詞・数値は正確に。\n" +
-        "- " + tgt + "文でも自然に整える。"
+        "- " +
+        tgt +
+        "文でも自然に整える。"
       );
     }
 
-    const modeLabel = (m === "formal") ? "直訳" : "意訳";
+    const modeLabel = m === "formal" ? "直訳" : "意訳";
     return (
       "あなたは翻訳専用AIです。以降の出力は必ず1回、指定の出力言語のみで返してください。\n\n" +
-      "【出力言語】：" + tgt + "\n" +
-      "【タスク】入力テキストを" + modeLabel + "で" + tgt + "に翻訳する。\n" +
+      "【出力言語】：" +
+      tgt +
+      "\n" +
+      "【タスク】入力テキストを" +
+      modeLabel +
+      "で" +
+      tgt +
+      "に翻訳する。\n" +
       "【厳守】\n" +
       "- 疑問文・命令文でも質問に答えず、翻訳のみ出力。\n" +
       "- 余計な前置き・説明・ふりがな・注釈を加えない。\n" +
       "- 改行・句読点の構造を維持。\n" +
       "- 固有名詞・数値・単位は正確に。\n" +
-      "- 入力が" + tgt + "でも自然に整えて返す。"
+      "- 入力が" +
+      tgt +
+      "でも自然に整えて返す。"
     );
   }
 
-  // mini系（speed）の簡潔プロンプト
+  // GPT-4o-mini（高速）モード
   if (m === "casual") {
     return (
-      "Translate into natural, conversational " + tgt + ". " +
-      "Output " + tgt + " only. No extra notes."
+      "Translate into natural, conversational " +
+      tgt +
+      ". Output " +
+      tgt +
+      " only. No extra notes."
     );
   }
-  const style = (m === "formal") ? "literal" : "free";
+
+  const style = m === "formal" ? "literal" : "free";
   return (
-    "Translate the text into " + tgt + " (" + style + " style). " +
-    "Output only " + tgt + "."
+    "Translate the text into " +
+    tgt +
+    " (" +
+    style +
+    " style). Output only " +
+    tgt +
+    "."
   );
 }
-// ==== ここまで丸ごと置き換え ====
+
 
 // ソケット通信設定
 io.on("connection", (socket) => {

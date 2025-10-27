@@ -160,8 +160,10 @@ function setLang(uid, i, o) {
 // ===== Socketイベント =====
 socket.on("init users", (u) => {
   const d = document.getElementById("users");
+  if (d.dataset.initialized === "true") return; // ←★ 追加！
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
+  d.dataset.initialized = "true"; // ←★ 初期化済みフラグをセット
 });
 
 socket.on("users updated", (u) => {

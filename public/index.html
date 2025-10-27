@@ -133,8 +133,37 @@
   }
 }
 
+.paste-btn {
+  position:absolute; top:6px; right:44px;
+  z-index:3; background:rgba(255,255,255,.85);
+  border:none; font-size:18px; border-radius:8px; cursor:pointer;
+  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.paste-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
+
+.speak-btn, .fs-btn {
+  position:absolute; top:6px; right:44px;
+  z-index:3; background:rgba(255,255,255,.85);
+  border:none; font-size:18px; border-radius:8px; cursor:pointer;
+  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.fs-btn { right:82px; }
+.speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
+
+.log { max-height:220px; overflow-y:auto; word-break:break-word; overflow-wrap:anywhere; }
+.log .line { user-select:text; cursor:pointer; }
+
+@media (max-width:768px){
+  .paste-btn, .speak-btn, .fs-btn {
+    font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
+  }
+}
+/* 👆ここで終わる */
   </style>
 </head>
+
 <body>
   <h1>リアルタイム翻訳くん 🌏</h1>
 
@@ -209,38 +238,3 @@
   <script src="client.js"></script>
 </body>
 </html>
-/* 入力欄：貼り付けボタン */
-.paste-btn {
-  position:absolute; top:6px; right:44px; /* 🗑️の左横に配置 */
-  z-index:3; background:rgba(255,255,255,.85);
-  border:none; font-size:18px; border-radius:8px; cursor:pointer;
-  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
-  box-shadow:0 1px 3px rgba(0,0,0,.15);
-}
-.paste-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
-
-/* 出力欄：読み上げ＆全画面（📋の左側に二つ並ぶ） */
-.speak-btn, .fs-btn {
-  position:absolute; top:6px; right:44px; /* 📋の左が基点 */
-  z-index:3; background:rgba(255,255,255,.85);
-  border:none; font-size:18px; border-radius:8px; cursor:pointer;
-  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
-  box-shadow:0 1px 3px rgba(0,0,0,.15);
-}
-.fs-btn { right:82px; }  /* 📋(右端) のさらに左へ */
-.speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
-
-/* ログ：長文の折返し＆内部スクロールを強化 */
-.log {
-  max-height: 220px;
-  overflow-y: auto;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-.log .line { user-select: text; cursor: pointer; }
-
-/* スマホでの操作性最適化 */
-@media (max-width:768px){
-  .paste-btn, .speak-btn, .fs-btn { font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%); }
-}
-

@@ -102,7 +102,6 @@ function buildSystemPrompt(mode, outputLang, model) {
   );
 }
 
-
 // ソケット通信設定
 io.on("connection", (socket) => {
   console.log("✅ Connected:", socket.id);
@@ -133,8 +132,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    if (joinedRoom && rooms[joinedRoom]) rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
-  socket.on("disconnect", () => {
     if (joinedRoom && rooms[joinedRoom]) {
       rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
       if (rooms[joinedRoom].count === 0) {
@@ -148,6 +145,7 @@ io.on("connection", (socket) => {
     });
     console.log("❌ Disconnected:", socket.id);
   });
+
 
   socket.on("add user", ({ room }) => {
     const r = rooms[room];

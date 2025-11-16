@@ -10,19 +10,9 @@ let currentRoom = null;
 // === URLのハッシュから room 名を取り出す ===
 // 例: #room/room1, #room/room2, #room/room3, #room/matsu
 function parseRoomFromHash() {
-  const h = location.hash || "";
-
-  // パターン1: #room/room1 みたいな形式
-  let m = h.match(/#room\/(room1|room2|room3|matsu)/);
-  if (m) return m[1];
-
-  // パターン2: #room1 / #room2 / #matsu みたいな形式
-  m = h.match(/#(room1|room2|room3|matsu)/);
-  if (m) return m[1];
-
-  return null;
+  const m = location.hash.match(/#room\/(room1|room2|room3|matsu)/);
+  return m ? m[1] : null;
 }
-
 
 // ===== debounceユーティリティ =====
 function debounce(fn, delay) {
@@ -290,8 +280,6 @@ window.addEventListener("hashchange", () => {
 });
 
 
-
-
   window.copyMainLink = async function(btn) {
     const url = originUrl();
     try {
@@ -454,12 +442,10 @@ window.emitClearLogs = function (btn) {
   });
 
 
-// 全画面（スマホのみ）
-const fsBtn = document.getElementById(`fs-${uid}`);
-if (fsBtn) {
+  // 全画面（スマホのみ）
+  const fsBtn = document.getElementById(`fs-${uid}`);
   const isMobile = window.innerWidth < 768;
   if (!isMobile) fsBtn.style.display = "none";
-
   fsBtn.addEventListener("click", async () => {
     if (!document.fullscreenElement) {
       const el = document.documentElement;
@@ -470,38 +456,17 @@ if (fsBtn) {
       fsBtn.textContent = "📱";
     }
   });
-}
 
-
-
-// ===== 📝 ログ行タップで全文選択 =====
-function selectNodeText(node) {
-  if (!node) return;
+// ログ行をタップで全文選択
+document.addEventListener("click", (e) => {
+  const line = e.target.closest(".log .line");
+  if (!line) return;
   const range = document.createRange();
-  range.selectNodeContents(node);
-
+  range.selectNodeContents(line);
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
-}
-
-// ログの 1 行をクリック／タップしたら、その行のテキストを全部選択
-document.addEventListener("click", (e) => {
-  // .log 内の .line 要素を探す
-  const line = e.target.closest(".log .line");
-  if (!line) return;
-
-  // 中に .input or .output があればそっちを優先して選択
-  const content = line.querySelector(".input, .output") || line;
-  selectNodeText(content);
 });
-
-// タブ復帰で自動再接続
-document.addEventListener("visibilitychange", () => { ... });
-
-// TTS voices 事前ロード ...
-if ("speechSynthesis" in window) { ... }
-
 
 // タブ復帰で自動再接続
 document.addEventListener("visibilitychange", () => {

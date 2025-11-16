@@ -467,6 +467,28 @@ document.addEventListener("click", (e) => {
   sel.removeAllRanges();
   sel.addRange(range);
 });
+// ===== 📝 ログ行タップで全文選択 =====
+function selectNodeText(node) {
+  if (!node) return;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// ログの 1 行をクリック／タップしたら、その行のテキストを全部選択
+document.addEventListener("click", (e) => {
+  // .log 内の .line 要素を探す
+  const line = e.target.closest(".log .line");
+  if (!line) return;
+
+  // 中に .input or .output があればそっちを優先して選択
+  const content = line.querySelector(".input, .output") || line;
+  selectNodeText(content);
+});
+
 
 // タブ復帰で自動再接続
 document.addEventListener("visibilitychange", () => {

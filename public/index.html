@@ -191,14 +191,14 @@
   </div>
 
   <!-- 🏠 ルーム選択 -->
-  <div id="room-select">
-    <h2>チャットルームを選んで入室</h2>
-    <div class="rooms">
-      <button onclick="joinRoom('room1')">Room 1</button>
-      <button onclick="joinRoom('room2')">Room 2</button>
-      <button onclick="joinRoom('room3')">Room 3</button>
-    </div>
+<div id="room-select">
+  <h2>チャットルームを選んで入室</h2>
+  <div class="rooms">
+    <button onclick="location.hash='#room/room1'; joinRoom('room1')">Room 1</button>
+    <button onclick="location.hash='#room/room2'; joinRoom('room2')">Room 2</button>
+    <button onclick="location.hash='#room/room3'; joinRoom('room3')">Room 3</button>
   </div>
+</div>
 
 <!-- 💬 メインアプリ -->
 <div id="main-app">

@@ -7,6 +7,13 @@ const socket = io("https://translate-app-backend.onrender.com", {
 });
 let currentRoom = null;
 
+// === URLのハッシュから room 名を取り出す ===
+// 例: #room/room1, #room/room2, #room/room3, #room/matsu
+function parseRoomFromHash() {
+  const m = location.hash.match(/#room\/(room1|room2|room3|matsu)/);
+  return m ? m[1] : null;
+}
+
 // ===== debounceユーティリティ =====
 function debounce(fn, delay) {
   let timer;
@@ -28,12 +35,24 @@ function toast(msg) {
 // ===== ルーム関連 =====
 function joinRoom(room) {
   currentRoom = room;
+
+  // URLハッシュを揃える（手動で呼ばれたときも）
+  if (location.hash !== `#room/${room}`) {
+    location.hash = `#room/${room}`;
+  }
+
   socket.emit("join room", { room });
+
+  // 画面表示の切替
   document.getElementById("room-select").style.display = "none";
   document.getElementById("main-app").style.display = "block";
-  document.getElementById("room-switch").value = room;
+
+  // 上のルームセレクトも合わせる（matsuが無い場合は無視される）
+  const sel = document.getElementById("room-switch");
+  if (sel) sel.value = room;
 }
 window.joinRoom = joinRoom;
+
 
 function leaveRoom() {
   if (currentRoom) socket.emit("leave room", { room: currentRoom });
@@ -46,11 +65,17 @@ window.leaveRoom = leaveRoom;
 
 function switchRoom(val) {
   if (val === currentRoom) return;
-  if (currentRoom) socket.emit("leave room", { room: currentRoom });
-  socket.emit("join room", { room: val });
-  currentRoom = val;
+
+  // 先に今のルームを離脱
+  if (currentRoom) {
+    socket.emit("leave room", { room: currentRoom });
+  }
+
+  // ハッシュを書き換えれば、hashchangeイベント経由で joinRoom が呼ばれる
+  location.hash = `#room/${val}`;
 }
 window.switchRoom = switchRoom;
+
 
 // ===== UI生成 =====
 function addUserBox(uid, name) {
@@ -216,6 +241,45 @@ document.addEventListener("DOMContentLoaded", () => {
     return window.location.href;
   }
 
+// === 初期表示：URLのハッシュから自動でルームに入る ===
+window.addEventListener("DOMContentLoaded", () => {
+  const room = parseRoomFromHash();
+  if (room) {
+    // 直接 /#room/matsu などに来た場合
+    joinRoom(room);
+  } else {
+    // ハッシュが無ければホーム画面
+    document.getElementById("main-app").style.display = "none";
+    document.getElementById("room-select").style.display = "block";
+  }
+});
+
+// === ハッシュが変わったときの自動ルーム切替 ===
+window.addEventListener("hashchange", () => {
+  const next = parseRoomFromHash();
+
+  if (!next) {
+    // ハッシュが無くなった → ホームへ
+    if (currentRoom) {
+      socket.emit("leave room", { room: currentRoom });
+    }
+    currentRoom = null;
+    document.getElementById("main-app").style.display = "none";
+    document.getElementById("room-select").style.display = "block";
+    document.getElementById("users").innerHTML = "";
+    return;
+  }
+
+  // 違うルームに切り替わったとき
+  if (next !== currentRoom) {
+    if (currentRoom) {
+      socket.emit("leave room", { room: currentRoom });
+    }
+    joinRoom(next);
+  }
+});
+
+
   window.copyMainLink = async function(btn) {
     const url = originUrl();
     try {
@@ -272,8 +336,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ===== 🏠 Homeボタン =====
 function goHome() {
-  window.location.href = "/";
+  // ルームから抜ける
+  if (currentRoom) {
+    socket.emit("leave room", { room: currentRoom });
+  }
+  currentRoom = null;
+
+  // URLのハッシュをクリア（トップ状態）
+  location.hash = "";
+
+  // 画面：main を隠し、room-select を出す
+  document.getElementById("main-app").style.display = "none";
+  document.getElementById("room-select").style.display = "block";
+  document.getElementById("users").innerHTML = "";
 }
+window.goHome = goHome;
+
 
 // ===== 💠 ボタン点滅フィードバック =====
 function flashButton(btn) {

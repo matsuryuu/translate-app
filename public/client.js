@@ -10,9 +10,19 @@ let currentRoom = null;
 // === URLのハッシュから room 名を取り出す ===
 // 例: #room/room1, #room/room2, #room/room3, #room/matsu
 function parseRoomFromHash() {
-  const m = location.hash.match(/#room\/(room1|room2|room3|matsu)/);
-  return m ? m[1] : null;
+  const h = location.hash || "";
+
+  // パターン1: #room/room1 みたいな形式
+  let m = h.match(/#room\/(room1|room2|room3|matsu)/);
+  if (m) return m[1];
+
+  // パターン2: #room1 / #room2 / #matsu みたいな形式
+  m = h.match(/#(room1|room2|room3|matsu)/);
+  if (m) return m[1];
+
+  return null;
 }
+
 
 // ===== debounceユーティリティ =====
 function debounce(fn, delay) {
@@ -278,6 +288,8 @@ window.addEventListener("hashchange", () => {
     joinRoom(next);
   }
 });
+
+
 
 
   window.copyMainLink = async function(btn) {

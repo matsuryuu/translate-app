@@ -442,10 +442,12 @@ window.emitClearLogs = function (btn) {
   });
 
 
-  // 全画面（スマホのみ）
-  const fsBtn = document.getElementById(`fs-${uid}`);
+// 全画面（スマホのみ）
+const fsBtn = document.getElementById(`fs-${uid}`);
+if (fsBtn) {
   const isMobile = window.innerWidth < 768;
   if (!isMobile) fsBtn.style.display = "none";
+
   fsBtn.addEventListener("click", async () => {
     if (!document.fullscreenElement) {
       const el = document.documentElement;
@@ -456,17 +458,10 @@ window.emitClearLogs = function (btn) {
       fsBtn.textContent = "📱";
     }
   });
+}
 
-// ログ行をタップで全文選択
-document.addEventListener("click", (e) => {
-  const line = e.target.closest(".log .line");
-  if (!line) return;
-  const range = document.createRange();
-  range.selectNodeContents(line);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-});
+
+
 // ===== 📝 ログ行タップで全文選択 =====
 function selectNodeText(node) {
   if (!node) return;
@@ -488,6 +483,12 @@ document.addEventListener("click", (e) => {
   const content = line.querySelector(".input, .output") || line;
   selectNodeText(content);
 });
+
+// タブ復帰で自動再接続
+document.addEventListener("visibilitychange", () => { ... });
+
+// TTS voices 事前ロード ...
+if ("speechSynthesis" in window) { ... }
 
 
 // タブ復帰で自動再接続

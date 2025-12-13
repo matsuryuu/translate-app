@@ -37,6 +37,118 @@ function toast(msg) {
   setTimeout(() => t.remove(), 1600);
 }
 
+// ===== 📱 出力だけ全画面表示（スマホ用オーバーレイ） =====
+function ensureOutputOverlay() {
+  let overlay = document.getElementById("output-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "output-overlay";
+  overlay.style.cssText = [
+    "position:fixed",
+    "inset:0",
+    "background:rgba(0,0,0,0.55)",
+    "z-index:99999",
+    "display:none",
+    "padding:12px",
+    "box-sizing:border-box",
+  ].join(";");
+
+  overlay.innerHTML = `
+    <div id="output-overlay-panel" style="
+      width:100%;
+      height:100%;
+      background:#fff;
+      border-radius:14px;
+      box-sizing:border-box;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    ">
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:10px 12px;
+        border-bottom:1px solid #e5e7eb;
+        font-weight:700;
+      ">
+        <div>翻訳結果</div>
+        <button id="output-overlay-close" style="
+          border:none;
+          background:#e5e7eb;
+          border-radius:10px;
+          padding:8px 10px;
+          font-weight:700;
+          cursor:pointer;
+        ">閉じる</button>
+      </div>
+      <textarea id="output-overlay-text" readonly style="
+        flex:1;
+        width:100%;
+        border:none;
+        outline:none;
+        resize:none;
+        padding:12px;
+        font-size:16px;
+        line-height:1.6;
+        box-sizing:border-box;
+      "></textarea>
+      <div style="
+        display:flex;
+        gap:10px;
+        padding:10px 12px;
+        border-top:1px solid #e5e7eb;
+      ">
+        <button id="output-overlay-copy" style="
+          flex:1;
+          border:none;
+          border-radius:12px;
+          padding:12px;
+          background:#a7d2f4;
+          font-weight:800;
+          cursor:pointer;
+        ">📋 コピー</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#output-overlay-close").addEventListener("click", () => hideOutputOverlay());
+
+  overlay.addEventListener("click", (e) => {
+    const panel = overlay.querySelector("#output-overlay-panel");
+    if (!panel.contains(e.target)) hideOutputOverlay();
+  });
+
+  overlay.querySelector("#output-overlay-copy").addEventListener("click", async () => {
+    const ta = overlay.querySelector("#output-overlay-text");
+    try {
+      await navigator.clipboard.writeText(ta.value || "");
+      toast("✅ コピーしたよ");
+    } catch {
+      toast("コピーできなかったよ");
+    }
+  });
+
+  return overlay;
+}
+
+function showOutputOverlay(text) {
+  const overlay = ensureOutputOverlay();
+  overlay.querySelector("#output-overlay-text").value = text || "";
+  overlay.style.display = "block";
+  document.body.style.overflow = "hidden";
+}
+
+function hideOutputOverlay() {
+  const overlay = document.getElementById("output-overlay");
+  if (!overlay) return;
+  overlay.style.display = "none";
+  document.body.style.overflow = "";
+}
+
 // ===== 画面切替ユーティリティ =====
 function showHome() {
   document.getElementById("main-app").style.display = "none";
@@ -50,15 +162,11 @@ function showRoom() {
 }
 
 // ===== ルーム関連 =====
-// joinRoom は「hashchange / 初期処理」から呼ぶ前提（hashを書き換えない）
 function joinRoom(room) {
   currentRoom = room;
-
   socket.emit("join room", { room });
-
   showRoom();
 
-  // 上のルームセレクトも合わせる（matsuが無い場合は無視される）
   const sel = document.getElementById("room-switch");
   if (sel) sel.value = room;
 }
@@ -70,14 +178,12 @@ function leaveRoom() {
   showHome();
 }
 
-// hash を唯一のトリガーにする
 function switchRoom(val) {
   if (val === currentRoom) return;
   location.hash = `#room/${val}`;
 }
 
 window.switchRoom = switchRoom;
-
 window.leaveRoom = leaveRoom;
 
 // ===== UI生成 =====
@@ -129,7 +235,6 @@ function addUserBox(uid, name) {
   `;
   usersDiv.appendChild(box);
 
-  // デフォルト設定
   if (uid === 1) setLang(uid, "ja", "zh");
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
@@ -140,7 +245,6 @@ function addUserBox(uid, name) {
     debounce((e) => socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value }), 200)
   );
 
-  // 翻訳ボタン
   document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
     const text = inputEl.value;
     const inputLang = document.getElementById(`input-lang-${uid}`).value;
@@ -154,7 +258,6 @@ function addUserBox(uid, name) {
     socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang, mode, model });
   });
 
-  // コピー
   const copyBtn = document.getElementById(`copy-${uid}`);
   copyBtn.addEventListener("click", async () => {
     const out = document.getElementById(`output-${uid}`);
@@ -168,14 +271,12 @@ function addUserBox(uid, name) {
     }
   });
 
-  // クリア
   const clearBtn = document.getElementById(`clear-${uid}`);
   clearBtn.addEventListener("click", () => {
     inputEl.value = "";
     socket.emit("input", { room: currentRoom, userId: uid, text: "" });
   });
 
-  // 貼り付け
   const pasteBtn = document.getElementById(`paste-${uid}`);
   pasteBtn.addEventListener("click", async () => {
     try {
@@ -192,7 +293,6 @@ function addUserBox(uid, name) {
     }
   });
 
-  // 読み上げ
   const speakBtn = document.getElementById(`speak-${uid}`);
   speakBtn.addEventListener("click", () => {
     const out = document.getElementById(`output-${uid}`);
@@ -216,25 +316,19 @@ function addUserBox(uid, name) {
     toast("🔊 再生するね");
   });
 
-  // 全画面（スマホのみ）
+  // 全画面（スマホのみ）：その枠の「出力」だけをオーバーレイで表示
   const fsBtn = document.getElementById(`fs-${uid}`);
   const isMobile = window.innerWidth < 768;
   if (!isMobile) fsBtn.style.display = "none";
-  fsBtn.addEventListener("click", async () => {
-    if (!document.fullscreenElement) {
-      const el = document.documentElement;
-      if (el.requestFullscreen) await el.requestFullscreen();
-      fsBtn.textContent = "❌";
-    } else {
-      if (document.exitFullscreen) await document.exitFullscreen();
-      fsBtn.textContent = "📱";
-    }
+
+  fsBtn.addEventListener("click", () => {
+    const out = document.getElementById(`output-${uid}`);
+    showOutputOverlay(out ? out.value : "");
   });
-}
+} // ← ★これが抜けてた（超重要）
 
 // ===== Socketイベント =====
 socket.on("init users", (u) => {
-  // ルームが変わったら初期化し直す（多重生成は抑止）
   if (initializedRoom === currentRoom) return;
 
   const d = document.getElementById("users");
@@ -244,11 +338,9 @@ socket.on("init users", (u) => {
 });
 
 socket.on("users updated", (u) => {
-  // サーバー正: 常に再描画
   const d = document.getElementById("users");
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
-  // users updated のあとも「このルームは初期化済み」として扱う
   initializedRoom = currentRoom;
 });
 
@@ -333,14 +425,6 @@ window.shareLink = async function (btn) {
     } catch {}
   }
   await window.copyMainLink(btn);
-};
-
-window.toggleSharePanel = function (btn) {
-  const panel = document.getElementById("share-panel");
-  if (!panel) return;
-  const show = panel.style.display === "none" || !panel.style.display;
-  panel.style.display = show ? "block" : "none";
-  btn.textContent = show ? "📄 閉じる" : "📄 詳細";
 };
 
 window.toggleQRCode = function (btn) {
@@ -433,7 +517,6 @@ function handleHashRouting() {
   const next = parseRoomFromHash();
 
   if (!next) {
-    // homeへ
     if (currentRoom) socket.emit("leave room", { room: currentRoom });
     currentRoom = null;
     initializedRoom = null;
@@ -448,12 +531,10 @@ function handleHashRouting() {
   }
 }
 
-// 初期表示
 window.addEventListener("DOMContentLoaded", () => {
   handleHashRouting();
 });
 
-// ハッシュが変わったとき
 window.addEventListener("hashchange", () => {
   handleHashRouting();
 });

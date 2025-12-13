@@ -52,7 +52,20 @@
     select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
 
     .user-container { display:flex; flex-wrap:wrap; justify-content:space-around; gap:16px; margin:18px; }
-    .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
+    .user-box {
+  text-align:left;
+  background:#fff;
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  min-width:320px;
+  max-width:480px;
+  flex:1;
+  box-sizing:border-box;
+  position:relative;
+  min-height: 0; /* ★ iOS Safariのスクロール対策 */
+}
+
     .user-box h3 { margin:6px 0 10px; }
 
     .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
@@ -68,6 +81,7 @@
     @media (max-width:768px) {
       .user-container { flex-direction:column; align-items:center; }
       .user-box { width:90%; margin-bottom:20px; }
+      .log {max-height: 140px;overscroll-behavior: contain;}
     }
 
     /* === 🧩 入出力欄ボタンを枠外に安全に浮かせる（PC/モバイル調整版） === */
@@ -89,57 +103,83 @@
       cursor: pointer;
       padding: 4px 5px;
       transition: all 0.25s ease;
+      -webkit-transform: translate(60%, -60%);
       transform: translate(60%, -60%);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     }
 
-    .copy-btn:hover,
-    .clear-btn:hover {
-      background: rgba(255, 255, 255, 1);
-      transform: translate(60%, -60%) scale(1.05);
-    }
+.copy-btn:hover,
+.clear-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  -webkit-transform: translate(60%, -60%) scale(1.05);
+  transform: translate(60%, -60%) scale(1.05);
+}
+
 
     .text.output {
       padding-right: 32px;
     }
 
-    @media (max-width: 768px) {
-      .copy-btn,
-      .clear-btn {
-        font-size: 12.6px;
-        padding: 3px 4px;
-        transform: translate(65%, -65%);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-      }
-    }
+@media (max-width: 768px) {
+  .copy-btn,
+  .clear-btn {
+    font-size: 12.6px;
+    padding: 3px 4px;
+    -webkit-transform: translate(65%, -65%);
+    transform: translate(65%, -65%);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+}
+
 
     .paste-btn {
       position:absolute; top:6px; right:44px;
       z-index:3; background:rgba(255,255,255,.85);
       border:none; font-size:18px; border-radius:8px; cursor:pointer;
-      padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
+      padding:4px 5px; transition:.25s;
+      -webkit-transform: translate(60%, -60%);
+      transform:translate(60%,-60%);
       box-shadow:0 1px 3px rgba(0,0,0,.15);
     }
-    .paste-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
+    .paste-btn:hover {
+  background:#fff;
+  -webkit-transform: translate(60%, -60%) scale(1.05);
+  transform: translate(60%, -60%) scale(1.05);
+}
 
-    .speak-btn, .fs-btn {
-      position:absolute; top:6px; right:44px;
-      z-index:3; background:rgba(255,255,255,.85);
-      border:none; font-size:18px; border-radius:8px; cursor:pointer;
-      padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
-      box-shadow:0 1px 3px rgba(0,0,0,.15);
-    }
+
+ .speak-btn, .fs-btn {
+  position:absolute; top:6px; right:44px;
+  z-index:3; background:rgba(255,255,255,.85);
+  border:none; font-size:18px; border-radius:8px; cursor:pointer;
+  padding:4px 5px; transition:.25s;
+  -webkit-transform: translate(60%, -60%);
+  transform: translate(60%, -60%);
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+
     .fs-btn { right:82px; }
-    .speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
+    .speak-btn:hover, .fs-btn:hover {
+  background:#fff;
+  -webkit-transform: translate(60%, -60%) scale(1.05);
+  transform: translate(60%, -60%) scale(1.05);
+}
+
 
 /* =========================
    📜 LOG（これだけ残す）
    ========================= */
 .log {
   margin-top: 10px;
-  height: 220px;                 /* PCでもスクロール化（安定） */
-  overflow-y: auto;
+
+  /* ★ iOSで安定させる：autoよりscrollの方が死ににくい */
+  overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
+
+  /* ★ 固定heightより max-height + auto が事故りにくい */
+  height: auto;
+  max-height: 220px;
+
   border-top: 1px dashed #d0d7e2;
   padding-top: 8px;
   text-align: left;
@@ -151,7 +191,14 @@
   -webkit-user-select: text;
   user-select: text;
   cursor: text;
+
+  /* ★ “縦スクロールのジェスチャ”を明示してiOSに伝える */
+  touch-action: pan-y;
+
+  /* ★ iOSの合成レイヤ絡みの事故回避で入れる保険 */
+  position: relative;
 }
+
 
 .log .line {
   display: flex;
@@ -179,18 +226,14 @@
 
 /* 📱スマホは高さを小さくして確実にスクロール */
 @media (max-width:768px){
-  .log {
-    height: 140px;
-    overscroll-behavior: contain;
+  .paste-btn, .speak-btn, .fs-btn {
+    font-size:12.6px;
+    padding:3px 4px;
+    -webkit-transform: translate(65%, -65%);
+    transform: translate(65%, -65%);
   }
 }
 
-/* 📱ボタン類：スマホで小さく */
-    @media (max-width:768px){
-      .paste-btn, .speak-btn, .fs-btn {
-        font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
-      }
-    }
 
   </style>
 </head>

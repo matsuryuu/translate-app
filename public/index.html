@@ -55,15 +55,6 @@
     .user-box { text-align:left; background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); min-width:320px; max-width:480px; flex:1; box-sizing:border-box; position:relative; }
     .user-box h3 { margin:6px 0 10px; }
 
-    .copy-btn, .clear-btn {
-      position:absolute; top:6px; right:6px;
-      border:none; background:rgba(255,255,255,0.6);
-      cursor:pointer; font-size:18px; border-radius:8px;
-      transition:all .2s; padding:4px;
-    }
-    .copy-btn:hover, .clear-btn:hover { background:rgba(255,255,255,0.9); }
-    .copy-btn.done { color:green; }
-
     .lang-controls { display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
     .lang-controls label { font-weight:600; }
     select { padding:8px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); }
@@ -72,21 +63,6 @@
 
     .text { width:100%; min-height:120px; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:15px; line-height:1.5; resize:none; overflow:auto; box-sizing:border-box; }
     .text.output { background:#f9f9ff; font-weight:600; position:relative; margin-top:6px; }
-
-    .log { margin-top:10px; max-height:220px; overflow:auto; font-size:14px; border-top:1px dashed #d0d7e2; padding-top:8px; text-align:left; }
-    .log .input { color:#9ca3af; }
-    .log .output { color:#0b68b8; font-weight:700; }
-    .log .line { 
-  display:flex; 
-  align-items:flex-start; 
-  gap:6px; 
-}
-
-    .log .mark { 
-  flex: 0 0 1.6em;
-  width:1.6em; 
-  text-align:center; 
-}
 
 
     @media (max-width:768px) {
@@ -156,32 +132,38 @@
     .fs-btn { right:82px; }
     .speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
 
-    .log {
-      max-height: 220px;
-      overflow-y: auto;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-      -webkit-user-select: text;
-      user-select: text;
-      cursor: text;
-    }
-    .log .line {
-      user-select: text;
-      cursor: text;
-    }
-
-    @media (max-width:768px){
-      .paste-btn, .speak-btn, .fs-btn {
-        font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
-      }
-    }
-/* === 📱ログ：スマホで崩れにくく、スクロールしやすく === */
+/* =========================
+   📜 LOG（これだけ残す）
+   ========================= */
 .log {
+  margin-top: 10px;
+  height: 220px;                 /* PCでもスクロール化（安定） */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  border-top: 1px dashed #d0d7e2;
+  padding-top: 8px;
+  text-align: left;
+  font-size: 14px;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
-.log .line { gap: 6px; }
+.log .line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.log .mark {
+  flex: 0 0 1.6em;
+  width: 1.6em;
+  text-align: center;
+}
 
 .log .input,
 .log .output {
@@ -192,10 +174,23 @@
   overflow-wrap: anywhere;
 }
 
+.log .input { color: #9ca3af; }
+.log .output { color: #0b68b8; font-weight: 700; }
+
+/* 📱スマホは高さを小さくして確実にスクロール */
 @media (max-width:768px){
-  .log { max-height: 140px; } 
+  .log {
+    height: 140px;
+    overscroll-behavior: contain;
+  }
 }
 
+/* 📱ボタン類：スマホで小さく */
+    @media (max-width:768px){
+      .paste-btn, .speak-btn, .fs-btn {
+        font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
+      }
+    }
 
   </style>
 </head>

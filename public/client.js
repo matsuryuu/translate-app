@@ -5,7 +5,11 @@ const socket = io("https://translate-app-backend.onrender.com", {
   withCredentials: true,
   transports: ["websocket"],
 });
+
 let currentRoom = null;
+
+// init users の多重抑止を「ルーム単位」で管理する
+let initializedRoom = null;
 
 // === URLのハッシュから room 名を取り出す ===
 // 例: #room/room1, #room/room2, #room/room3, #room/matsu
@@ -27,57 +31,61 @@ function debounce(fn, delay) {
 function toast(msg) {
   const t = document.createElement("div");
   t.innerText = msg;
-  t.style = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#a7d2f4;padding:10px 16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-weight:600;z-index:9999;";
+  t.style =
+    "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#a7d2f4;padding:10px 16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-weight:600;z-index:9999;";
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 1600);
 }
 
+// ===== 画面切替ユーティリティ =====
+function showHome() {
+  document.getElementById("main-app").style.display = "none";
+  document.getElementById("room-select").style.display = "block";
+  document.getElementById("users").innerHTML = "";
+}
+
+function showRoom() {
+  document.getElementById("room-select").style.display = "none";
+  document.getElementById("main-app").style.display = "block";
+}
+
 // ===== ルーム関連 =====
+// joinRoom は「hashchange / 初期処理」から呼ぶ前提（hashを書き換えない）
 function joinRoom(room) {
   currentRoom = room;
 
-  // URLハッシュを揃える（手動で呼ばれたときも）
-  if (location.hash !== `#room/${room}`) {
-    location.hash = `#room/${room}`;
-  }
-
   socket.emit("join room", { room });
 
-  // 画面表示の切替
-  document.getElementById("room-select").style.display = "none";
-  document.getElementById("main-app").style.display = "block";
+  showRoom();
 
   // 上のルームセレクトも合わせる（matsuが無い場合は無視される）
   const sel = document.getElementById("room-switch");
   if (sel) sel.value = room;
 }
-window.joinRoom = joinRoom;
-
 
 function leaveRoom() {
   if (currentRoom) socket.emit("leave room", { room: currentRoom });
   currentRoom = null;
-  document.getElementById("main-app").style.display = "none";
-  document.getElementById("room-select").style.display = "block";
-  document.getElementById("users").innerHTML = "";
+  initializedRoom = null;
+  showHome();
 }
-window.leaveRoom = leaveRoom;
 
+// hash を唯一のトリガーにする
 function switchRoom(val) {
   if (val === currentRoom) return;
-
-  // 先に今のルームを離脱
-  if (currentRoom) {
-    socket.emit("leave room", { room: currentRoom });
-  }
-
-  // ハッシュを書き換えれば、hashchangeイベント経由で joinRoom が呼ばれる
   location.hash = `#room/${val}`;
 }
+
 window.switchRoom = switchRoom;
 
+window.leaveRoom = leaveRoom;
 
 // ===== UI生成 =====
+function setLang(uid, i, o) {
+  document.getElementById(`input-lang-${uid}`).value = i;
+  document.getElementById(`output-lang-${uid}`).value = o;
+}
+
 function addUserBox(uid, name) {
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -104,7 +112,7 @@ function addUserBox(uid, name) {
       <button id="btn-translate-${uid}" class="btn-translate">翻訳</button>
     </div>
 
-<div style="position:relative;">
+    <div style="position:relative;">
       <textarea id="input-${uid}" class="text" placeholder="入力してください"></textarea>
       <button class="paste-btn" id="paste-${uid}" title="貼り付け">📋</button>
       <button class="clear-btn" id="clear-${uid}" title="クリア">🗑️</button>
@@ -141,8 +149,8 @@ function addUserBox(uid, name) {
     const model = document.getElementById("model-select").value;
     const out = document.getElementById(`output-${uid}`);
     out.value = "翻訳中…";
-    // 🔸全端末へ翻訳中…を通知
-    socket.emit("input", { room: currentRoom, userId: uid, text }); 
+
+    socket.emit("input", { room: currentRoom, userId: uid, text });
     socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang, mode, model });
   });
 
@@ -166,27 +174,82 @@ function addUserBox(uid, name) {
     inputEl.value = "";
     socket.emit("input", { room: currentRoom, userId: uid, text: "" });
   });
-}
 
-function setLang(uid, i, o) {
-  document.getElementById(`input-lang-${uid}`).value = i;
-  document.getElementById(`output-lang-${uid}`).value = o;
-}
+  // 貼り付け
+  const pasteBtn = document.getElementById(`paste-${uid}`);
+  pasteBtn.addEventListener("click", async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      const el = document.getElementById(`input-${uid}`);
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      el.value = el.value.slice(0, start) + clip + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = start + clip.length;
+      socket.emit("input", { room: currentRoom, userId: uid, text: el.value });
+      toast("✅ 貼り付けたよ");
+    } catch {
+      toast("貼り付けできなかったよ");
+    }
+  });
 
+  // 読み上げ
+  const speakBtn = document.getElementById(`speak-${uid}`);
+  speakBtn.addEventListener("click", () => {
+    const out = document.getElementById(`output-${uid}`);
+    const langSel = document.getElementById(`output-lang-${uid}`).value;
+    const langMap = { ja: "ja-JP", zh: "zh-TW", en: "en-US", ko: "ko-KR" };
+    const u = new SpeechSynthesisUtterance(out.value || "");
+    u.lang = langMap[langSel] || "ja-JP";
+    u.rate = 1.25;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+    speechSynthesis.cancel();
+
+    const voices = window.availableVoices || speechSynthesis.getVoices();
+    const v =
+      voices.find((v) => v.lang === u.lang) ||
+      voices.find((v) => v.lang.startsWith(u.lang.split("-")[0])) ||
+      voices[0];
+    if (v) u.voice = v;
+
+    speechSynthesis.speak(u);
+    toast("🔊 再生するね");
+  });
+
+  // 全画面（スマホのみ）
+  const fsBtn = document.getElementById(`fs-${uid}`);
+  const isMobile = window.innerWidth < 768;
+  if (!isMobile) fsBtn.style.display = "none";
+  fsBtn.addEventListener("click", async () => {
+    if (!document.fullscreenElement) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      fsBtn.textContent = "❌";
+    } else {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      fsBtn.textContent = "📱";
+    }
+  });
+}
 
 // ===== Socketイベント =====
 socket.on("init users", (u) => {
+  // ルームが変わったら初期化し直す（多重生成は抑止）
+  if (initializedRoom === currentRoom) return;
+
   const d = document.getElementById("users");
-  if (d.dataset.initialized === "true") return; // ←★ 追加！
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
-  d.dataset.initialized = "true"; // ←★ 初期化済みフラグをセット
+  initializedRoom = currentRoom;
 });
 
 socket.on("users updated", (u) => {
+  // サーバー正: 常に再描画
   const d = document.getElementById("users");
   d.innerHTML = "";
   Object.entries(u).forEach(([id, n]) => addUserBox(Number(id), n));
+  // users updated のあとも「このルームは初期化済み」として扱う
+  initializedRoom = currentRoom;
 });
 
 socket.on("room-stats", (counts) => {
@@ -210,7 +273,7 @@ socket.on("existing-logs", (logs) => {
 
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
-  if (document.activeElement === el) return; // 自分で編集中なら上書きしない
+  if (document.activeElement === el) return;
   if (el && el.value !== text) el.value = text;
 });
 
@@ -236,122 +299,73 @@ socket.on("logs cleared", () => {
 });
 
 // ===== 共有ボタン（通信と独立） =====
-document.addEventListener("DOMContentLoaded", () => {
-  function originUrl() {
-    return window.location.href;
+function originUrl() {
+  return window.location.href;
+}
+
+window.copyMainLink = async function (btn) {
+  const url = originUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "✅ コピー";
+    setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    btn.textContent = "✅ コピー";
+    setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
   }
+};
 
-// === 初期表示：URLのハッシュから自動でルームに入る ===
-window.addEventListener("DOMContentLoaded", () => {
-  const room = parseRoomFromHash();
-  if (room) {
-    // 直接 /#room/matsu などに来た場合
-    joinRoom(room);
-  } else {
-    // ハッシュが無ければホーム画面
-    document.getElementById("main-app").style.display = "none";
-    document.getElementById("room-select").style.display = "block";
-  }
-});
-
-// === ハッシュが変わったときの自動ルーム切替 ===
-window.addEventListener("hashchange", () => {
-  const next = parseRoomFromHash();
-
-  if (!next) {
-    // ハッシュが無くなった → ホームへ
-    if (currentRoom) {
-      socket.emit("leave room", { room: currentRoom });
-    }
-    currentRoom = null;
-    document.getElementById("main-app").style.display = "none";
-    document.getElementById("room-select").style.display = "block";
-    document.getElementById("users").innerHTML = "";
-    return;
-  }
-
-  // 違うルームに切り替わったとき
-  if (next !== currentRoom) {
-    if (currentRoom) {
-      socket.emit("leave room", { room: currentRoom });
-    }
-    joinRoom(next);
-  }
-});
-
-
-  window.copyMainLink = async function(btn) {
-    const url = originUrl();
+window.shareLink = async function (btn) {
+  const url = originUrl();
+  const title = document.title || "リアルタイム翻訳くん";
+  if (navigator.share) {
     try {
-      await navigator.clipboard.writeText(url);
-      btn.textContent = "✅ コピー";
-      setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-      btn.textContent = "✅ コピー";
-      setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
-    }
-  };
+      await navigator.share({ title, url });
+      btn.textContent = "📨 実行";
+      setTimeout(() => (btn.textContent = "📱 シェア"), 1500);
+      return;
+    } catch {}
+  }
+  await window.copyMainLink(btn);
+};
 
-  window.shareLink = async function(btn) {
-    const url = originUrl();
-    const title = document.title || "リアルタイム翻訳くん";
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, url });
-        btn.textContent = "📨 実行";
-        setTimeout(() => (btn.textContent = "📱 シェア"), 1500);
-        return;
-      } catch {}
-    }
-    await window.copyMainLink(btn);
-  };
+window.toggleSharePanel = function (btn) {
+  const panel = document.getElementById("share-panel");
+  if (!panel) return;
+  const show = panel.style.display === "none" || !panel.style.display;
+  panel.style.display = show ? "block" : "none";
+  btn.textContent = show ? "📄 閉じる" : "📄 詳細";
+};
 
-  window.toggleSharePanel = function(btn) {
-    const panel = document.getElementById("share-panel");
-    const show = panel.style.display === "none" || !panel.style.display;
-    panel.style.display = show ? "block" : "none";
-    btn.textContent = show ? "📄 閉じる" : "📄 詳細";
-  };
-
-  window.toggleQRCode = function(btn) {
-    const wrap = document.getElementById("qr-wrap");
-    const canvas = document.getElementById("qr-canvas");
-    const show = wrap.style.display === "none" || !wrap.style.display;
-    wrap.style.display = show ? "block" : "none";
-    if (show) {
-      // eslint-disable-next-line no-undef
-      new QRious({ element: canvas, value: originUrl(), size: 220 });
-      btn.textContent = "🧾 閉じる";
-    } else {
-      btn.textContent = "🧾 QR表示";
-    }
-  };
-});
+window.toggleQRCode = function (btn) {
+  const wrap = document.getElementById("qr-wrap");
+  const canvas = document.getElementById("qr-canvas");
+  const show = wrap.style.display === "none" || !wrap.style.display;
+  wrap.style.display = show ? "block" : "none";
+  if (show) {
+    // eslint-disable-next-line no-undef
+    new QRious({ element: canvas, value: originUrl(), size: 220 });
+    btn.textContent = "🧾 閉じる";
+  } else {
+    btn.textContent = "🧾 QR表示";
+  }
+};
 
 // ===== 🏠 Homeボタン =====
 function goHome() {
-  // ルームから抜ける
-  if (currentRoom) {
-    socket.emit("leave room", { room: currentRoom });
-  }
+  if (currentRoom) socket.emit("leave room", { room: currentRoom });
   currentRoom = null;
-
-  // URLのハッシュをクリア（トップ状態）
+  initializedRoom = null;
   location.hash = "";
-
-  // 画面：main を隠し、room-select を出す
-  document.getElementById("main-app").style.display = "none";
-  document.getElementById("room-select").style.display = "block";
-  document.getElementById("users").innerHTML = "";
+  showHome();
 }
 window.goHome = goHome;
-
 
 // ===== 💠 ボタン点滅フィードバック =====
 function flashButton(btn) {
@@ -360,40 +374,25 @@ function flashButton(btn) {
   setTimeout(() => btn.classList.remove("btn-flash"), 400);
 }
 
-// ===== 👤 ユーザー追加・削除 =====
-function getUserCount() {
-  return document.querySelectorAll(".user-box").length;
-}
-
+// ===== 👤 ユーザー追加・削除（サーバー正） =====
 window.emitAddUser = function (btn) {
   flashButton(btn);
-  const count = getUserCount();
-  if (count >= 5) {
-    alert("これ以上追加できません（最大5ユーザー）");
-    return;
-  }
-  const newId = count + 1;
-  addUserBox(newId, `ユーザー${newId}`);
-  toast(`👤 ユーザー${newId} を追加しました`);
+  if (!currentRoom) return;
+  socket.emit("add user", { room: currentRoom });
 };
 
 window.emitRemoveUser = function (btn) {
   flashButton(btn);
-  const count = getUserCount();
-  if (count <= 1) {
-    alert("これ以上削除できません（最低1ユーザー）");
-    return;
-  }
-  const target = document.getElementById(`user-box-${count}`);
-  if (target) target.remove();
-  toast(`👋 ユーザー${count} を削除しました`);
+  if (!currentRoom) return;
+  socket.emit("remove user", { room: currentRoom });
 };
 
-// ===== 🗑️ 全ログ削除機能修正版 =====
+// ===== 🗑️ 全ログ削除 =====
 window.emitClearLogs = function (btn) {
   flashButton(btn);
-  const room = document.getElementById("room-switch").value;
-  socket.emit("clear logs", { room }); // ← サーバーへ通知（復旧ポイント）
+  if (!currentRoom) return;
+  socket.emit("clear logs", { room: currentRoom });
+
   btn.classList.add("btn-busy");
   btn.textContent = "削除中…";
 
@@ -403,59 +402,6 @@ window.emitClearLogs = function (btn) {
     setTimeout(() => (btn.textContent = "全ログ削除"), 1200);
   }, 1200);
 };
-
-  // 貼り付け
-  const pasteBtn = document.getElementById(`paste-${uid}`);
-  pasteBtn.addEventListener("click", async () => {
-    try {
-      const clip = await navigator.clipboard.readText();
-      const el = document.getElementById(`input-${uid}`);
-      const start = el.selectionStart ?? el.value.length;
-      const end   = el.selectionEnd   ?? el.value.length;
-      el.value = el.value.slice(0, start) + clip + el.value.slice(end);
-      el.selectionStart = el.selectionEnd = start + clip.length;
-      socket.emit("input", { room: currentRoom, userId: uid, text: el.value });
-      toast("✅ 貼り付けたよ");
-    } catch {
-      toast("貼り付けできなかったよ");
-    }
-  });
-
-  // 読み上げ
-  const speakBtn = document.getElementById(`speak-${uid}`);
-  speakBtn.addEventListener("click", () => {
-    const out = document.getElementById(`output-${uid}`);
-    const langSel = document.getElementById(`output-lang-${uid}`).value;
-    const langMap = { ja:"ja-JP", zh:"zh-TW", en:"en-US", ko:"ko-KR" };
-    const u = new SpeechSynthesisUtterance(out.value || "");
-    u.lang   = langMap[langSel] || "ja-JP";
-    u.rate   = 1.25; // 速めで滑らか
-    u.pitch  = 1.0;
-    u.volume = 1.0;
-    speechSynthesis.cancel();
-    // 事前ロード済みのvoiceを使う（初回遅延対策）
-    const voices = window.availableVoices || speechSynthesis.getVoices();
-    const v = voices.find(v => v.lang === u.lang) || voices.find(v => v.lang.startsWith(u.lang.split("-")[0])) || voices[0];
-    if (v) u.voice = v;
-    speechSynthesis.speak(u);
-    toast("🔊 再生するね");
-  });
-
-
-  // 全画面（スマホのみ）
-  const fsBtn = document.getElementById(`fs-${uid}`);
-  const isMobile = window.innerWidth < 768;
-  if (!isMobile) fsBtn.style.display = "none";
-  fsBtn.addEventListener("click", async () => {
-    if (!document.fullscreenElement) {
-      const el = document.documentElement;
-      if (el.requestFullscreen) await el.requestFullscreen();
-      fsBtn.textContent = "❌";
-    } else {
-      if (document.exitFullscreen) await document.exitFullscreen();
-      fsBtn.textContent = "📱";
-    }
-  });
 
 // ログ行をタップで全文選択
 document.addEventListener("click", (e) => {
@@ -482,3 +428,32 @@ if ("speechSynthesis" in window) {
   };
 }
 
+// ===== hash ルーティング（唯一の入口） =====
+function handleHashRouting() {
+  const next = parseRoomFromHash();
+
+  if (!next) {
+    // homeへ
+    if (currentRoom) socket.emit("leave room", { room: currentRoom });
+    currentRoom = null;
+    initializedRoom = null;
+    showHome();
+    return;
+  }
+
+  if (next !== currentRoom) {
+    if (currentRoom) socket.emit("leave room", { room: currentRoom });
+    initializedRoom = null;
+    joinRoom(next);
+  }
+}
+
+// 初期表示
+window.addEventListener("DOMContentLoaded", () => {
+  handleHashRouting();
+});
+
+// ハッシュが変わったとき
+window.addEventListener("hashchange", () => {
+  handleHashRouting();
+});

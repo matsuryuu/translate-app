@@ -82,162 +82,141 @@
       .user-box { width:90%; margin-bottom:20px; }
     }
 
+    /* === 🧩 入出力欄ボタンを枠外に安全に浮かせる（PC/モバイル調整版） === */
+    .user-box > div {
+      position: relative;
+      overflow: visible;
+    }
 
+    .copy-btn,
+    .clear-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 3;
+      background: rgba(255, 255, 255, 0.85);
+      border: none;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 4px 5px;
+      transition: all 0.25s ease;
+      transform: translate(60%, -60%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
 
-/* === 🧩 入出力欄ボタンを枠外に安全に浮かせる（PC/モバイル調整版） === */
+    .copy-btn:hover,
+    .clear-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translate(60%, -60%) scale(1.05);
+    }
 
-/* 入力・出力欄の親divを相対配置＋オーバーフロー許可 */
-.user-box > div {
-  position: relative;
-  overflow: visible;
-}
+    .text.output {
+      padding-right: 32px;
+    }
 
-/* 💻 PC用（デフォルト） */
-.copy-btn,
-.clear-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 3;
-  background: rgba(255, 255, 255, 0.85);
-  border: none;
-  font-size: 18px; /* ← PCでは通常サイズ */
-  border-radius: 8px;
-  cursor: pointer;
-  padding: 4px 5px;
-  transition: all 0.25s ease;
-  transform: translate(60%, -60%); /* ← 外側に少し寄せる */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); /* ← 浮き具合控えめ */
-}
+    @media (max-width: 768px) {
+      .copy-btn,
+      .clear-btn {
+        font-size: 12.6px;
+        padding: 3px 4px;
+        transform: translate(65%, -65%);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+      }
+    }
 
-/* hover時の軽いエフェクト */
-.copy-btn:hover,
-.clear-btn:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: translate(60%, -60%) scale(1.05);
-}
+    .paste-btn {
+      position:absolute; top:6px; right:44px;
+      z-index:3; background:rgba(255,255,255,.85);
+      border:none; font-size:18px; border-radius:8px; cursor:pointer;
+      padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
+      box-shadow:0 1px 3px rgba(0,0,0,.15);
+    }
+    .paste-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
 
-/* 出力欄文字の干渉防止 */
-.text.output {
-  padding-right: 32px;
-}
+    .speak-btn, .fs-btn {
+      position:absolute; top:6px; right:44px;
+      z-index:3; background:rgba(255,255,255,.85);
+      border:none; font-size:18px; border-radius:8px; cursor:pointer;
+      padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
+      box-shadow:0 1px 3px rgba(0,0,0,.15);
+    }
+    .fs-btn { right:82px; }
+    .speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
 
-/* 📱 モバイル用 */
-@media (max-width: 768px) {
-  .copy-btn,
-  .clear-btn {
-    font-size: 12.6px; /* ← 約70%サイズ */
-    padding: 3px 4px;
-    transform: translate(65%, -65%); /* ← 少し外側へ寄せる */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); /* ← 影さらに控えめ */
-  }
-}
+    .log {
+      max-height: 220px;
+      overflow-y: auto;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      -webkit-user-select: text;
+      user-select: text;
+      cursor: text;
+    }
+    .log .line {
+      user-select: text;
+      cursor: text;
+    }
 
-.paste-btn {
-  position:absolute; top:6px; right:44px;
-  z-index:3; background:rgba(255,255,255,.85);
-  border:none; font-size:18px; border-radius:8px; cursor:pointer;
-  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
-  box-shadow:0 1px 3px rgba(0,0,0,.15);
-}
-.paste-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
-
-.speak-btn, .fs-btn {
-  position:absolute; top:6px; right:44px;
-  z-index:3; background:rgba(255,255,255,.85);
-  border:none; font-size:18px; border-radius:8px; cursor:pointer;
-  padding:4px 5px; transition:.25s; transform:translate(60%,-60%);
-  box-shadow:0 1px 3px rgba(0,0,0,.15);
-}
-.fs-btn { right:82px; }
-.speak-btn:hover, .fs-btn:hover { background:#fff; transform:translate(60%,-60%) scale(1.05); }
-
-.log {
-  max-height: 220px;
-  overflow-y: auto;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  -webkit-user-select: text;
-  user-select: text;
-  cursor: text;
-}
-.log .line {
-  user-select: text;
-  cursor: text;
-}
-
-@media (max-width:768px){
-  .paste-btn, .speak-btn, .fs-btn {
-    font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
-  }
-}
-/* 👆ここで終わる */
+    @media (max-width:768px){
+      .paste-btn, .speak-btn, .fs-btn {
+        font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
+      }
+    }
   </style>
 </head>
 
 <body>
   <h1>リアルタイム翻訳くん 🌏</h1>
 
-  <!-- 🌐 共有ボタン群 -->
   <div class="share-buttons">
     <button onclick="copyMainLink(this)">📋 URLコピー</button>
     <button onclick="shareLink(this)">📱 シェア</button>
     <button onclick="toggleQRCode(this)">🧾 QR表示</button>
   </div>
 
-  <!-- 🧾 QRコード表示領域 -->
   <div id="qr-wrap" style="display:none;">
     <canvas id="qr-canvas" width="220" height="220"></canvas>
   </div>
 
-  <!-- 🏠 ルーム選択 -->
-<div id="room-select">
-  <h2>チャットルームを選んで入室</h2>
-  <div class="rooms">
-    <button onclick="location.hash='#room/room1'; joinRoom('room1')">Room 1</button>
-    <button onclick="location.hash='#room/room2'; joinRoom('room2')">Room 2</button>
-    <button onclick="location.hash='#room/room3'; joinRoom('room3')">Room 3</button>
-  </div>
-</div>
-
-<!-- 💬 メインアプリ -->
-<div id="main-app">
-  <div class="top-controls">
-    <!-- 🏠 Home -->
-    <button class="btn-blue" onclick="goHome()">🏠 Home</button>
-
-    <!-- 👤 ユーザー管理 -->
-    <button class="btn-blue" onclick="emitAddUser(this)">ユーザー追加</button>
-    <button class="btn-blue" onclick="emitRemoveUser(this)">ユーザー削除</button>
-
-    <!-- 翻訳モード -->
-    <select id="mode-select">
-      <option value="free">意訳（自然）</option>
-      <option value="formal">直訳（忠実）</option>
-      <option value="casual">日常（チャット調）</option>
-    </select>
-
-
-    <!-- モデル選択 -->
-    <select id="model-select">
-      <option value="quality">精度重視</option>
-      <option value="speed">速度重視</option>
-    </select>
-
-    <!-- 🗑️ 全ログ削除（翻訳ボタンと同系色に変更） -->
-    <button class="btn-translate" id="btn-clear-logs" onclick="emitClearLogs(this)">全ログ削除</button>
-
-    <!-- ルーム切替 -->
-    <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
-      <option value="room1">Room 1</option>
-      <option value="room2">Room 2</option>
-      <option value="room3">Room 3</option>
-    </select>
+  <div id="room-select">
+    <h2>チャットルームを選んで入室</h2>
+    <div class="rooms">
+      <button onclick="location.hash='#room/room1'">Room 1</button>
+      <button onclick="location.hash='#room/room2'">Room 2</button>
+      <button onclick="location.hash='#room/room3'">Room 3</button>
+    </div>
   </div>
 
-  <div class="user-container" id="users"></div>
-</div>
+  <div id="main-app">
+    <div class="top-controls">
+      <button class="btn-blue" onclick="goHome()">🏠 Home</button>
 
+      <button class="btn-blue" onclick="emitAddUser(this)">ユーザー追加</button>
+      <button class="btn-blue" onclick="emitRemoveUser(this)">ユーザー削除</button>
+
+      <select id="mode-select">
+        <option value="free">意訳（自然）</option>
+        <option value="formal">直訳（忠実）</option>
+        <option value="casual">日常（チャット調）</option>
+      </select>
+
+      <select id="model-select">
+        <option value="quality">精度重視</option>
+        <option value="speed">速度重視</option>
+      </select>
+
+      <button class="btn-translate" id="btn-clear-logs" onclick="emitClearLogs(this)">全ログ削除</button>
+
+      <select class="room-switch" id="room-switch" onchange="switchRoom(this.value)">
+        <option value="room1">Room 1</option>
+        <option value="room2">Room 2</option>
+        <option value="room3">Room 3</option>
+      </select>
+    </div>
+
+    <div class="user-container" id="users"></div>
+  </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>

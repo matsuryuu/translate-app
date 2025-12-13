@@ -228,6 +228,13 @@ io.on("connection", (socket) => {
     io.to(room).emit("logs cleared");
   });
 
+socket.on("get logs", ({ room }) => {
+  const r = rooms[room];
+  if (!r) return;
+  socket.emit("room logs", { room, logs: r.logs });
+});
+
+
   // 🧠 翻訳処理
 socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
   try {

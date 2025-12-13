@@ -431,6 +431,50 @@ socket.on("logs cleared", () => {
   document.querySelectorAll(".log").forEach((l) => (l.innerHTML = ""));
 });
 
+socket.on("room logs", ({ room, logs }) => {
+  // logs: [{ userId, text, result }, ...]（最新が先頭）
+  const now = new Date();
+  const ts =
+    now.getFullYear() +
+    "-" + String(now.getMonth() + 1).padStart(2, "0") +
+    "-" + String(now.getDate()).padStart(2, "0") +
+    "_" + String(now.getHours()).padStart(2, "0") +
+    String(now.getMinutes()).padStart(2, "0");
+
+  const lines = [];
+  lines.push(`room: ${room}`);
+  lines.push(`exported: ${now.toISOString()}`);
+  lines.push("");
+
+  // 保存は古い順で読めるように逆順
+  const ordered = [...(logs || [])].reverse();
+
+  ordered.forEach((x, i) => {
+    const uid = x.userId ?? "";
+    const input = x.text ?? "";
+    const out = x.result ?? "";
+    lines.push(`--- #${i + 1}  userId=${uid} ---`);
+    lines.push(`📝 ${input}`);
+    lines.push(`💬 ${out}`);
+    lines.push("");
+  });
+
+  const content = lines.join("\n");
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `logs_${room}_${ts}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  toast("✅ ログを保存したよ");
+});
+
+
 // ===== 共有ボタン（通信と独立） =====
 function originUrl() {
   return window.location.href;
@@ -453,6 +497,22 @@ window.copyMainLink = async function (btn) {
     setTimeout(() => (btn.textContent = "📋 URLコピー"), 1500);
   }
 };
+
+window.emitExportLogs = function (btn) {
+  if (!currentRoom) return;
+  if (btn) {
+    btn.classList.add("btn-busy");
+    btn.textContent = "出力中…";
+  }
+  socket.emit("get logs", { room: currentRoom });
+
+  setTimeout(() => {
+    if (!btn) return;
+    btn.classList.remove("btn-busy");
+    btn.textContent = "ログ出力";
+  }, 800);
+};
+
 
 window.shareLink = async function (btn) {
   const url = originUrl();

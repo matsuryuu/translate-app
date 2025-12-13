@@ -46,6 +46,7 @@
     .btn-clear { background:pink; border-radius:8px; border:1px solid #b8c7d9; font-weight:600; cursor:pointer; padding:8px 12px; }
     .btn-clear.busy { opacity:0.6; pointer-events:none; }
     .btn-clear.done { background:#a7d2f4; }
+<button class="btn-translate" onclick="emitExportLogs(this)">ログ出力</button>
 
     select.room-switch { padding:6px 10px; border-radius:8px; border:1px solid #b8c7d9; background:var(--blue-3); font-weight:600; }
 
@@ -163,6 +164,27 @@
         font-size:12.6px; padding:3px 4px; transform:translate(65%,-65%);
       }
     }
+/* === 📱ログ：スマホで崩れにくく、スクロールしやすく === */
+.log {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.log .line { gap: 6px; }
+
+.log .input,
+.log .output {
+  min-width: 0;            /* flex内で折り返しを効かせる */
+  white-space: pre-wrap;   /* 改行保持しつつ折り返し */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width:768px){
+  .log { max-height: 140px; }  /* スマホは短めに固定（他ユーザーを守る） */
+}
+
+
   </style>
 </head>
 

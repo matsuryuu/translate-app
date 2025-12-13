@@ -135,19 +135,60 @@ function ensureOutputOverlay() {
   return overlay;
 }
 
+function adjustOverlayFontSize(textarea) {
+  const MAX = 32;   // 最大文字サイズ（適当でOK）
+  const MIN = 14;   // 最低サイズ
+  let size = MAX;
+
+  textarea.style.fontSize = size + "px";
+
+  // はみ出す限り縮める
+  while (
+    size > MIN &&
+    (textarea.scrollHeight > textarea.clientHeight ||
+     textarea.scrollWidth  > textarea.clientWidth)
+  ) {
+    size -= 1;
+    textarea.style.fontSize = size + "px";
+  }
+}
+
+
 function showOutputOverlay(text) {
   const overlay = ensureOutputOverlay();
-  overlay.querySelector("#output-overlay-text").value = text || "";
+  const ta = overlay.querySelector("#output-overlay-text");
+
+  ta.value = text || "";
   overlay.style.display = "block";
   document.body.style.overflow = "hidden";
+
+  // 初期サイズ → 自動調整
+  requestAnimationFrame(() => {
+    adjustOverlayFontSize(ta);
+  });
+
+  // 可能なら横画面にロック（失敗しても無視）
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock("landscape").catch(() => {});
+    }
+  } catch {}
 }
 
 function hideOutputOverlay() {
   const overlay = document.getElementById("output-overlay");
   if (!overlay) return;
+
   overlay.style.display = "none";
   document.body.style.overflow = "";
+
+  try {
+    if (screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock();
+    }
+  } catch {}
 }
+
 
 // ===== 画面切替ユーティリティ =====
 function showHome() {

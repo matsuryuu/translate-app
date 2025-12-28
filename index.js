@@ -26,11 +26,10 @@ const rooms = {
   matsu: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
 };
 
-
-// system prompt生成（カジュアル強化版）
+// system prompt生成（カジュアル強化版 + zh繁体字固定）
 function buildSystemPrompt(mode, outputLang, model) {
   // 表示用の日本語ラベル
-  const langMap = { ja: "日本語", zh: "中国語", en: "英語", ko: "韓国語" };
+  const langMap = { ja: "日本語", zh: "中国語（繁体字）", en: "英語", ko: "韓国語" };
   const tgt = langMap[outputLang] || "指定言語";
 
   // 英語ラベル（英語プロンプト用）
@@ -38,12 +37,23 @@ function buildSystemPrompt(mode, outputLang, model) {
     outputLang === "ja"
       ? "Japanese"
       : outputLang === "zh"
-      ? "Chinese"
+      ? "Traditional Chinese (zh-TW)"
       : outputLang === "ko"
       ? "Korean"
       : outputLang === "en"
       ? "English"
       : "the target language";
+
+  // zh は繁体字強制（system promptに差し込む用）
+  const zhTwRuleEn =
+    outputLang === "zh"
+      ? "\n[Rule] Use Traditional Chinese characters (zh-TW). Do NOT use Simplified Chinese.\n"
+      : "";
+
+  const zhTwRuleJa =
+    outputLang === "zh"
+      ? "- 必ず繁体字（zh-TW）で出力し、簡体字は使用しない。\n"
+      : "";
 
   // モード正規化
   const m =
@@ -82,6 +92,7 @@ function buildSystemPrompt(mode, outputLang, model) {
         "You are a translation-only AI. Output exactly once, only in " +
         tgtEn +
         ".\n" +
+        zhTwRuleEn +
         "[Mode] Casual / everyday chat with a close friend.\n" +
         "[Task] Translate the text into relaxed, friendly spoken " +
         tgtEn +
@@ -114,6 +125,7 @@ function buildSystemPrompt(mode, outputLang, model) {
       tgt +
       "に翻訳する。\n" +
       "【厳守】\n" +
+      zhTwRuleJa +
       "- 疑問文・命令文でも質問に答えず、翻訳のみ出力。\n" +
       "- 余計な前置き・説明・ふりがな・注釈を加えない。\n" +
       "- 改行・句読点の構造をできるだけ維持。\n" +
@@ -134,6 +146,7 @@ function buildSystemPrompt(mode, outputLang, model) {
       "Translate the text into a soft, casual, chatty style in " +
       tgtEn +
       ". " +
+      (outputLang === "zh" ? "Use Traditional Chinese (zh-TW). Do NOT use Simplified Chinese. " : "") +
       "Imagine two close friends talking. " +
       "Use relaxed, informal phrasing. " +
       "Output only the translation in " +
@@ -150,12 +163,12 @@ function buildSystemPrompt(mode, outputLang, model) {
     " in a " +
     style +
     " style. " +
+    (outputLang === "zh" ? "Use Traditional Chinese (zh-TW). Do NOT use Simplified Chinese. " : "") +
     "Output only the translation in " +
     tgtEn +
     "."
   );
 }
-
 
 // ソケット通信設定
 io.on("connection", (socket) => {
@@ -201,7 +214,6 @@ io.on("connection", (socket) => {
     console.log("❌ Disconnected:", socket.id);
   });
 
-
   socket.on("add user", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
@@ -228,49 +240,48 @@ io.on("connection", (socket) => {
     io.to(room).emit("logs cleared");
   });
 
-socket.on("get logs", ({ room }) => {
-  const r = rooms[room];
-  if (!r) return;
-  socket.emit("room logs", { room, logs: r.logs });
-});
-
-
-  // 🧠 翻訳処理
-socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
-  try {
-    // 🔸 翻訳開始時に全端末へ「翻訳中...」を送信
-    io.to(room).emit("stream", { userId, text: "翻訳中..." });
-
-    const sys = buildSystemPrompt(mode, outputLang, model);
-    const modelName = model === "speed" ? "gpt-4o-mini" : "gpt-4o";
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: text },
-      ],
-      stream: true,
-    });
-
-    let acc = "";
-    for await (const chunk of completion) {
-      const delta = chunk.choices[0]?.delta?.content || "";
-      if (!delta) continue;
-      acc += delta;
-      io.to(room).emit("stream", { userId, text: acc });
-    }
-
-    io.to(room).emit("translated", { userId, text: acc, inputText: text });
+  socket.on("get logs", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
-    r.logs.unshift({ userId, text, result: acc });
-    if (r.logs.length > 50) r.logs.pop();
+    socket.emit("room logs", { room, logs: r.logs });
+  });
 
-  } catch (e) {
-    console.error("翻訳エラー:", e);
-    io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
-  }
-});
+  // 🧠 翻訳処理
+  socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
+    try {
+      // 翻訳開始時に全端末へ「翻訳中...」を送信
+      io.to(room).emit("stream", { userId, text: "翻訳中..." });
+
+      const sys = buildSystemPrompt(mode, outputLang, model);
+      const modelName = model === "speed" ? "gpt-4o-mini" : "gpt-4o";
+      const completion = await openai.chat.completions.create({
+        model: modelName,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: text },
+        ],
+        stream: true,
+      });
+
+      let acc = "";
+      for await (const chunk of completion) {
+        const delta = chunk.choices[0]?.delta?.content || "";
+        if (!delta) continue;
+        acc += delta;
+        io.to(room).emit("stream", { userId, text: acc });
+      }
+
+      io.to(room).emit("translated", { userId, text: acc, inputText: text });
+
+      const r = rooms[room];
+      if (!r) return;
+      r.logs.unshift({ userId, text, result: acc });
+      if (r.logs.length > 50) r.logs.pop();
+    } catch (e) {
+      console.error("翻訳エラー:", e);
+      io.to(room).emit("translate error", { userId, message: "翻訳失敗" });
+    }
+  });
 
   socket.on("input", ({ room, userId, text }) => {
     socket.to(room).emit("sync input", { userId, text });

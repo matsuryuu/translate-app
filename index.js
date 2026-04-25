@@ -1,3 +1,5 @@
+// ===== 01 Server Setup =====
+// [01-1] Imports
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -5,6 +7,7 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 dotenv.config();
 
+// [01-2] Express / Socket.IO Setup
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -16,9 +19,11 @@ const io = new Server(server, {
   transports: ["websocket"],
 });
 
+// [01-3] OpenAI Client
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ルーム定義
+// ===== 02 Room State =====
+// [02-1] Room Definition
 const rooms = {
   room1: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
   room2: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
@@ -26,7 +31,8 @@ const rooms = {
   matsu: { users: { 1: "ユーザー1", 2: "ユーザー2", 3: "ユーザー3" }, logs: [], count: 0 },
 };
 
-// system prompt生成（カジュアル強化版 + zh繁体字固定）
+// ===== 03 Translation Prompt =====
+// [03-1] System Prompt Builder
 function buildSystemPrompt(mode, outputLang, model) {
   // 表示用の日本語ラベル
   const langMap = { ja: "日本語", zh: "中国語（繁体字）", en: "英語", ko: "韓国語" };
@@ -63,9 +69,7 @@ function buildSystemPrompt(mode, outputLang, model) {
       ? "casual"
       : "free";
 
-  // ============================
-  // 🧠 GPT-4o（高品質）モード
-  // ============================
+  // [03-2] GPT-4o Quality Prompt
   if (model === "quality") {
     // 🌈 日常（casual）モード：全言語ゆるふわ会話調
     if (m === "casual") {
@@ -136,9 +140,7 @@ function buildSystemPrompt(mode, outputLang, model) {
     );
   }
 
-  // ============================
-  // ⚡ GPT-4o-mini（高速）モード
-  // ============================
+  // [03-3] GPT-4o-mini Speed Prompt
 
   // miniでも casual のときはかなりゆるくする
   if (m === "casual") {
@@ -170,18 +172,36 @@ function buildSystemPrompt(mode, outputLang, model) {
   );
 }
 
-// ソケット通信設定
+// ===== 04 Socket Events =====
+// [04-1] Connection State
 io.on("connection", (socket) => {
   console.log("✅ Connected:", socket.id);
   let joinedRoom = null;
 
+  // [04-2] Join Room
   socket.on("join room", ({ room }) => {
     if (!rooms[room]) return;
+
+    if (joinedRoom && joinedRoom !== room && rooms[joinedRoom]) {
+      socket.leave(joinedRoom);
+      rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
+    }
+
+    const isRejoinSameRoom = joinedRoom === room;
+
     joinedRoom = room;
     socket.join(room);
-    rooms[room].count++;
+
+    if (!isRejoinSameRoom) {
+      rooms[room].count++;
+    }
+
     socket.emit("init users", rooms[room].users);
-    if (rooms[room].logs.length > 0) socket.emit("existing-logs", rooms[room].logs);
+
+    if (!isRejoinSameRoom && rooms[room].logs.length > 0) {
+      socket.emit("existing-logs", rooms[room].logs);
+    }
+
     io.emit("room-stats", {
       room1: rooms.room1.count,
       room2: rooms.room2.count,
@@ -189,6 +209,7 @@ io.on("connection", (socket) => {
     });
   });
 
+  // [04-3] Leave Room
   socket.on("leave room", ({ room }) => {
     if (rooms[room]) rooms[room].count = Math.max(rooms[room].count - 1, 0);
     socket.leave(room);
@@ -199,6 +220,7 @@ io.on("connection", (socket) => {
     });
   });
 
+  // [04-4] Disconnect
   socket.on("disconnect", () => {
     if (joinedRoom && rooms[joinedRoom]) {
       rooms[joinedRoom].count = Math.max(rooms[joinedRoom].count - 1, 0);
@@ -214,6 +236,7 @@ io.on("connection", (socket) => {
     console.log("❌ Disconnected:", socket.id);
   });
 
+  // [04-5] Add User
   socket.on("add user", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
@@ -224,6 +247,7 @@ io.on("connection", (socket) => {
     io.to(room).emit("users updated", r.users);
   });
 
+  // [04-6] Remove User
   socket.on("remove user", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
@@ -233,6 +257,7 @@ io.on("connection", (socket) => {
     io.to(room).emit("users updated", r.users);
   });
 
+  // [04-7] Clear Logs
   socket.on("clear logs", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
@@ -240,13 +265,14 @@ io.on("connection", (socket) => {
     io.to(room).emit("logs cleared");
   });
 
+  // [04-8] Get Logs
   socket.on("get logs", ({ room }) => {
     const r = rooms[room];
     if (!r) return;
     socket.emit("room logs", { room, logs: r.logs });
   });
 
-  // 🧠 翻訳処理
+  // [04-9] Translate Stream
   socket.on("translate", async ({ room, userId, text, inputLang, outputLang, mode, model }) => {
     try {
       // 翻訳開始時に全端末へ「翻訳中...」を送信
@@ -283,10 +309,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  // [04-10] Input Sync
   socket.on("input", ({ room, userId, text }) => {
     socket.to(room).emit("sync input", { userId, text });
   });
 });
 
+// ===== 05 Server Start =====
+// [05-1] Listen
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

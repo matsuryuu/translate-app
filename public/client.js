@@ -1,24 +1,28 @@
+// ===== 01 App State =====
+// [01-1] Load Check
 console.log("✅ client.js loaded");
 
-// ===== Socket.IO 初期化 =====
+// [01-2] Socket.IO Setup
 const socket = io("https://translate-app-backend.onrender.com", {
   withCredentials: true,
   transports: ["websocket"],
 });
 
+// [01-3] Global State
 let currentRoom = null;
 
 // init users の多重抑止を「ルーム単位」で管理する
 let initializedRoom = null;
 
-// === URLのハッシュから room 名を取り出す ===
+// [01-4] Hash Parser
 // 例: #room/room1, #room/room2, #room/room3, #room/matsu
 function parseRoomFromHash() {
   const m = location.hash.match(/#room\/(room1|room2|room3|matsu)/);
   return m ? m[1] : null;
 }
 
-// ===== debounceユーティリティ =====
+// ===== 02 Utilities =====
+// [02-1] Debounce
 function debounce(fn, delay) {
   let timer;
   return (...args) => {
@@ -27,7 +31,7 @@ function debounce(fn, delay) {
   };
 }
 
-// ===== トースト通知 =====
+// [02-2] Toast
 function toast(msg) {
   const t = document.createElement("div");
   t.innerText = msg;
@@ -37,7 +41,8 @@ function toast(msg) {
   setTimeout(() => t.remove(), 1600);
 }
 
-// ===== 📱 出力だけ全画面表示（スマホ用オーバーレイ） =====
+// ===== 03 Output Overlay =====
+// [03-1] Overlay Builder
 function ensureOutputOverlay() {
   let overlay = document.getElementById("output-overlay");
   if (overlay) return overlay;
@@ -135,6 +140,7 @@ function ensureOutputOverlay() {
   return overlay;
 }
 
+// [03-2] Overlay Font Size
 function adjustOverlayFontSize(textarea) {
   const MAX = 32;   // 最大文字サイズ（適当でOK）
   const MIN = 14;   // 最低サイズ
@@ -154,6 +160,7 @@ function adjustOverlayFontSize(textarea) {
 }
 
 
+// [03-3] Show Overlay
 function showOutputOverlay(text) {
   const overlay = ensureOutputOverlay();
   const ta = overlay.querySelector("#output-overlay-text");
@@ -175,6 +182,7 @@ function showOutputOverlay(text) {
   } catch {}
 }
 
+// [03-4] Hide Overlay
 function hideOutputOverlay() {
   const overlay = document.getElementById("output-overlay");
   if (!overlay) return;
@@ -190,7 +198,8 @@ function hideOutputOverlay() {
 }
 
 
-// ===== 画面切替ユーティリティ =====
+// ===== 04 Screen / Room Control =====
+// [04-1] Screen Switch
 function showHome() {
   document.getElementById("main-app").style.display = "none";
   document.getElementById("room-select").style.display = "block";
@@ -202,7 +211,7 @@ function showRoom() {
   document.getElementById("main-app").style.display = "block";
 }
 
-// ===== ルーム関連 =====
+// [04-2] Room Join / Leave
 function joinRoom(room) {
   currentRoom = room;
   socket.emit("join room", { room });
@@ -227,12 +236,14 @@ function switchRoom(val) {
 window.switchRoom = switchRoom;
 window.leaveRoom = leaveRoom;
 
-// ===== UI生成 =====
+// ===== 05 User UI =====
+// [05-1] Language Preset
 function setLang(uid, i, o) {
   document.getElementById(`input-lang-${uid}`).value = i;
   document.getElementById(`output-lang-${uid}`).value = o;
 }
 
+// [05-2] User Box Builder
 function addUserBox(uid, name) {
   const usersDiv = document.getElementById("users");
   const box = document.createElement("div");
@@ -280,12 +291,14 @@ function addUserBox(uid, name) {
   if (uid === 2) setLang(uid, "zh", "ja");
   if (uid === 3) setLang(uid, "auto", "ja");
 
+  // [05-3] Input Sync Handler
   const inputEl = document.getElementById(`input-${uid}`);
   inputEl.addEventListener(
     "input",
     debounce((e) => socket.emit("input", { room: currentRoom, userId: uid, text: e.target.value }), 200)
   );
 
+  // [05-4] Translate Button Handler
   document.getElementById(`btn-translate-${uid}`).addEventListener("click", () => {
     const text = inputEl.value;
     const inputLang = document.getElementById(`input-lang-${uid}`).value;
@@ -293,12 +306,26 @@ function addUserBox(uid, name) {
     const mode = document.getElementById("mode-select").value;
     const model = document.getElementById("model-select").value;
     const out = document.getElementById(`output-${uid}`);
+
+    if (!currentRoom) {
+      toast("ルームに入り直してね");
+      return;
+    }
+
+    if (socket.disconnected) {
+      socket.connect();
+    }
+
+    socket.emit("join room", { room: currentRoom });
+
     out.value = "翻訳中…";
 
     socket.emit("input", { room: currentRoom, userId: uid, text });
     socket.emit("translate", { room: currentRoom, userId: uid, text, inputLang, outputLang, mode, model });
   });
 
+
+  // [05-5] Copy Button Handler
   const copyBtn = document.getElementById(`copy-${uid}`);
   copyBtn.addEventListener("click", async () => {
     const out = document.getElementById(`output-${uid}`);
@@ -312,12 +339,14 @@ function addUserBox(uid, name) {
     }
   });
 
+  // [05-6] Clear Button Handler
   const clearBtn = document.getElementById(`clear-${uid}`);
   clearBtn.addEventListener("click", () => {
     inputEl.value = "";
     socket.emit("input", { room: currentRoom, userId: uid, text: "" });
   });
 
+  // [05-7] Paste Button Handler
   const pasteBtn = document.getElementById(`paste-${uid}`);
   pasteBtn.addEventListener("click", async () => {
     try {
@@ -334,6 +363,7 @@ function addUserBox(uid, name) {
     }
   });
 
+  // [05-8] Speak Button Handler
   const speakBtn = document.getElementById(`speak-${uid}`);
   speakBtn.addEventListener("click", () => {
     const out = document.getElementById(`output-${uid}`);
@@ -357,7 +387,7 @@ function addUserBox(uid, name) {
     toast("🔊 再生するね");
   });
 
-  // 全画面（スマホのみ）：その枠の「出力」だけをオーバーレイで表示
+  // [05-9] Fullscreen Button Handler
   const fsBtn = document.getElementById(`fs-${uid}`);
   const isMobile = window.innerWidth < 768;
   if (!isMobile) fsBtn.style.display = "none";
@@ -368,7 +398,8 @@ function addUserBox(uid, name) {
   });
 } // ← ★これが抜けてた（超重要）
 
-// ===== Socketイベント =====
+// ===== 06 Socket Event Handlers =====
+// [06-1] Init Users
 socket.on("init users", (u) => {
   if (initializedRoom === currentRoom) return;
 
@@ -378,6 +409,7 @@ socket.on("init users", (u) => {
   initializedRoom = currentRoom;
 });
 
+// [06-2] Users Updated
 socket.on("users updated", (u) => {
   const d = document.getElementById("users");
   d.innerHTML = "";
@@ -385,6 +417,7 @@ socket.on("users updated", (u) => {
   initializedRoom = currentRoom;
 });
 
+// [06-3] Room Stats
 socket.on("room-stats", (counts) => {
   ["room1", "room2", "room3"].forEach((r) => {
     const opt = document.querySelector(`#room-switch option[value='${r}']`);
@@ -392,7 +425,10 @@ socket.on("room-stats", (counts) => {
   });
 });
 
+// [06-4] Existing Logs
 socket.on("existing-logs", (logs) => {
+  document.querySelectorAll(".log").forEach((l) => (l.innerHTML = ""));
+
   logs.forEach(({ text, result, userId }) => {
     const log = document.getElementById(`log-${userId || 1}`);
     if (log) {
@@ -404,17 +440,21 @@ socket.on("existing-logs", (logs) => {
   });
 });
 
+
+// [06-5] Sync Input
 socket.on("sync input", ({ userId, text }) => {
   const el = document.getElementById(`input-${userId}`);
   if (document.activeElement === el) return;
   if (el && el.value !== text) el.value = text;
 });
 
+// [06-6] Stream Output
 socket.on("stream", ({ userId, text }) => {
   const el = document.getElementById(`output-${userId}`);
   if (el) requestAnimationFrame(() => (el.value = text));
 });
 
+// [06-7] Translation Complete
 socket.on("translated", ({ userId, text, inputText }) => {
   const out = document.getElementById(`output-${userId}`);
   const log = document.getElementById(`log-${userId}`);
@@ -427,10 +467,12 @@ socket.on("translated", ({ userId, text, inputText }) => {
   }
 });
 
+// [06-8] Logs Cleared
 socket.on("logs cleared", () => {
   document.querySelectorAll(".log").forEach((l) => (l.innerHTML = ""));
 });
 
+// [06-9] Log Export Response
 socket.on("room logs", ({ room, logs }) => {
   // logs: [{ userId, text, result }, ...]（最新が先頭）
   const now = new Date();
@@ -475,11 +517,13 @@ socket.on("room logs", ({ room, logs }) => {
 });
 
 
-// ===== 共有ボタン（通信と独立） =====
+// ===== 07 Share / Export =====
+// [07-1] Current URL
 function originUrl() {
   return window.location.href;
 }
 
+// [07-2] Copy Main Link
 window.copyMainLink = async function (btn) {
   const url = originUrl();
   try {
@@ -498,6 +542,7 @@ window.copyMainLink = async function (btn) {
   }
 };
 
+// [07-3] Export Logs
 window.emitExportLogs = function (btn) {
   if (!currentRoom) return;
   if (btn) {
@@ -514,6 +559,7 @@ window.emitExportLogs = function (btn) {
 };
 
 
+// [07-4] Share Link
 window.shareLink = async function (btn) {
   const url = originUrl();
   const title = document.title || "リアルタイム翻訳くん";
@@ -528,6 +574,7 @@ window.shareLink = async function (btn) {
   await window.copyMainLink(btn);
 };
 
+// [07-5] QR Code
 window.toggleQRCode = function (btn) {
   const wrap = document.getElementById("qr-wrap");
   const canvas = document.getElementById("qr-canvas");
@@ -542,7 +589,8 @@ window.toggleQRCode = function (btn) {
   }
 };
 
-// ===== 🏠 Homeボタン =====
+// ===== 08 Buttons / Controls =====
+// [08-1] Home Button
 function goHome() {
   if (currentRoom) socket.emit("leave room", { room: currentRoom });
   currentRoom = null;
@@ -552,14 +600,14 @@ function goHome() {
 }
 window.goHome = goHome;
 
-// ===== 💠 ボタン点滅フィードバック =====
+// [08-2] Button Flash
 function flashButton(btn) {
   if (!btn) return;
   btn.classList.add("btn-flash");
   setTimeout(() => btn.classList.remove("btn-flash"), 400);
 }
 
-// ===== 👤 ユーザー追加・削除（サーバー正） =====
+// [08-3] Add / Remove User Buttons
 window.emitAddUser = function (btn) {
   flashButton(btn);
   if (!currentRoom) return;
@@ -572,7 +620,7 @@ window.emitRemoveUser = function (btn) {
   socket.emit("remove user", { room: currentRoom });
 };
 
-// ===== 🗑️ 全ログ削除 =====
+// [08-4] Clear Logs Button
 window.emitClearLogs = function (btn) {
   flashButton(btn);
   if (!currentRoom) return;
@@ -588,7 +636,8 @@ window.emitClearLogs = function (btn) {
   }, 1200);
 };
 
-// ログ行をタップで全文選択
+// ===== 09 Browser Events =====
+// [09-1] Select Log Line
 document.addEventListener("click", (e) => {
   const line = e.target.closest(".log .line");
   if (!line) return;
@@ -599,21 +648,36 @@ document.addEventListener("click", (e) => {
   sel.addRange(range);
 });
 
-// タブ復帰で自動再接続
+// [09-2] Visibility Reconnect
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && socket.disconnected) {
+  if (document.visibilityState !== "visible") return;
+
+  if (socket.disconnected) {
     socket.connect();
+    return;
+  }
+
+  if (currentRoom) {
+    socket.emit("join room", { room: currentRoom });
   }
 });
 
-// TTS voices 事前ロード（初回の再生遅延を回避）
+// [09-3] Socket Rejoin After Connect
+socket.on("connect", () => {
+  if (!currentRoom) return;
+  socket.emit("join room", { room: currentRoom });
+});
+
+// [09-4] TTS Voices Preload
 if ("speechSynthesis" in window) {
   speechSynthesis.onvoiceschanged = () => {
     window.availableVoices = speechSynthesis.getVoices();
   };
 }
 
-// ===== hash ルーティング（唯一の入口） =====
+
+// ===== 10 Routing =====
+// [10-1] Hash Routing
 function handleHashRouting() {
   const next = parseRoomFromHash();
 
@@ -632,6 +696,7 @@ function handleHashRouting() {
   }
 }
 
+// [10-2] Routing Events
 window.addEventListener("DOMContentLoaded", () => {
   handleHashRouting();
 });
